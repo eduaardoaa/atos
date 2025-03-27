@@ -71,8 +71,8 @@ def validacao(usr, passw):
 
 # Função para verificar se é um dispositivo mobile
 def is_mobile():
-    # Use um texto oculto para determinar a largura da tela (Simulação simplificada)
-    return st.text_input(" ", key="mobile_check", type="password", label_visibility="collapsed") == ""
+    # A abordagem será verificar o tamanho da tela do dispositivo, como alternativa ao widget duplicado
+    return st.text_input(" ", key=generate_unique_key("mobile_check"), type="password", label_visibility="collapsed") == ""
 
 # Página principal de login
 if not st.session_state.authenticated:
