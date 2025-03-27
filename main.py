@@ -246,7 +246,7 @@ if st.session_state.authenticated:
                 usuarios = puxarusuarios()
 
                 # Detectar se a largura da tela é pequena (típico de celular)
-                is_mobile = st.experimental_get_query_params().get('device', ['desktop'])[0] == 'mobile'
+                is_mobile = st.query_params.get('device', ['desktop'])[0] == 'mobile'
 
                 # Se for celular, exibe as informações detalhadas
                 if is_mobile:
