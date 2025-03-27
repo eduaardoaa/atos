@@ -246,7 +246,7 @@ if st.session_state.authenticated:
             def listarusuarios():
                 usuarios = puxarusuarios()
 
-                table_columns = [2, 10, 5, 5, 8, 4, 2, 2]
+                table_columns = [2, 6, 5, 6, 4, 3, 4, 4]  # Ajuste das colunas para celular
                 header = st.columns(table_columns)
                 headers = ["ID", "NomeEmpresa", "Usuário", "Senha", "Número", "Permissão", "Editar", "Excluir"]
 
@@ -256,7 +256,8 @@ if st.session_state.authenticated:
 
                 for user in usuarios:
                     with st.container():
-                        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 10, 5, 5, 8, 4, 2, 2])
+                        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 6, 5, 6, 4, 3, 4, 4])
+
                         col1.write(user[0])  # ID
                         col2.write(user[1])  # NomeEmpresa
                         col3.write(user[2])  # Usuário
@@ -268,7 +269,6 @@ if st.session_state.authenticated:
                             st.session_state.editar_usuario = user[0]
                             st.rerun()
                         
-                        # Confirmar exclusão
                         if col8.button("🗑️", key=f"delete_{user[0]}"):
                             st.session_state.confirmarexclusao = user[0]
                             st.session_state.usuario_a_excluir = user[1]
