@@ -1,6 +1,12 @@
 import mysql.connector
 import streamlit as st
 import logging
+import random
+import string
+
+# Função para gerar uma chave única para o widget
+def generate_unique_key(base_key):
+    return base_key + "_" + ''.join(random.choices(string.ascii_letters + string.digits, k=6))
 
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
@@ -62,6 +68,10 @@ def validacao(usr, passw):
 
     else:
         st.error('Usuário ou senha incorretos, tente novamente.')
+
+# Função para verificar se é um dispositivo mobile
+def is_mobile():
+    return st.text_input(" ", key=generate_unique_key("mobile_check"), type="password", label_visibility="collapsed") == ""
 
 # Página principal de login
 if not st.session_state.authenticated:
@@ -325,4 +335,3 @@ if st.session_state.authenticated:
             st.title("Dashboard de Usuários")
             st.write("Aqui você pode visualizar as informações dos usuários.")
             st.write("Em construção...")
-
