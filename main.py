@@ -245,47 +245,100 @@ if st.session_state.authenticated:
             def listarusuarios():
                 usuarios = puxarusuarios()
 
-                # Para dispositivos móveis, exibimos as informações com rótulos antes de cada valor
-                for user in usuarios:
-                    st.markdown(f"### Usuário {user[0]}")
-                    st.write(f"**Nome da Empresa:** {user[1]}")
-                    st.write(f"**Usuário:** {user[2]}")
-                    st.write(f"**Senha:** {user[3]}")
-                    st.write(f"**Número:** {user[4]}")
-                    st.write(f"**Permissão:** {user[5]}")
+                # Detectar se a largura da tela é pequena (típico de celular)
+                is_mobile = st.experimental_get_query_params().get('device', ['desktop'])[0] == 'mobile'
 
-                    col1, col2 = st.columns([1, 1])
-                    with col1:
-                        if st.button(f"Editar {user[0]}", key=f"edit_{user[0]}"):
-                            st.session_state.editar_usuario = user[0]
-                            st.rerun()
-                    
-                    with col2:
-                        if st.button(f"Excluir {user[0]}", key=f"delete_{user[0]}"):
-                            st.session_state.confirmarexclusao = user[0]
-                            st.session_state.usuario_a_excluir = user[1]
-                            st.session_state.exclusao_confirmada = False
-                            st.rerun()
-
-                    # Exibir a confirmação para excluir o usuário
-                    if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user[0] and not st.session_state.exclusao_confirmada:
-                        st.subheader(f"Você realmente deseja excluir o usuário {st.session_state.usuario_a_excluir}?")
+                # Se for celular, exibe as informações detalhadas
+                if is_mobile:
+                    for user in usuarios:
+                        st.markdown(f"### Usuário {user[0]}")
+                        st.write(f"**Nome da Empresa:** {user[1]}")
+                        st.write(f"**Usuário:** {user[2]}")
+                        st.write(f"**Senha:** {user[3]}")
+                        st.write(f"**Número:** {user[4]}")
+                        st.write(f"**Permissão:** {user[5]}")
 
                         col1, col2 = st.columns([1, 1])
                         with col1:
-                            if st.button("Sim", key=f"sim_{user[0]}"):
-                                excluirusuario(user[0])
-                                st.session_state.exclusao_confirmada = True
-                                st.session_state.confirmarexclusao = None
+                            if st.button(f"Editar {user[0]}", key=f"edit_{user[0]}"):
+                                st.session_state.editar_usuario = user[0]
+                                st.rerun()
+                        
+                        with col2:
+                            if st.button(f"Excluir {user[0]}", key=f"delete_{user[0]}"):
+                                st.session_state.confirmarexclusao = user[0]
+                                st.session_state.usuario_a_excluir = user[1]
+                                st.session_state.exclusao_confirmada = False
+                                st.rerun()
+
+                        # Exibir a confirmação para excluir o usuário
+                        if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user[0] and not st.session_state.exclusao_confirmada:
+                            st.subheader(f"Você realmente deseja excluir o usuário {st.session_state.usuario_a_excluir}?")
+
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                if st.button("Sim", key=f"sim_{user[0]}"):
+                                    excluirusuario(user[0])
+                                    st.session_state.exclusao_confirmada = True
+                                    st.session_state.confirmarexclusao = None
+                                    st.rerun()
+
+                            with col2:
+                                if st.button("Não", key=f"nao_{user[0]}"):
+                                    st.session_state.exclusao_confirmada = True
+                                    st.session_state.confirmarexclusao = None
+                                    st.rerun()
+
+                            st.markdown("---")
+
+                # Caso contrário (para desktop), exibe a tabela padrão
+                else:
+                    # Exibição da tabela padrão
+                    for user in usuarios:
+                        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+                        with col1:
+                            st.write(user[1])  # Nome da Empresa
+                        with col2:
+                            st.write(user[2])  # Usuário
+                        with col3:
+                            st.write(user[3])  # Senha
+                        with col4:
+                            st.write(user[4])  # Número
+                        with col5:
+                            st.write(user[5])  # Permissão
+
+                        col1, col2 = st.columns([1, 1])
+                        with col1:
+                            if st.button(f"Editar {user[0]}", key=f"edit_{user[0]}"):
+                                st.session_state.editar_usuario = user[0]
                                 st.rerun()
 
                         with col2:
-                            if st.button("Não", key=f"nao_{user[0]}"):
-                                st.session_state.exclusao_confirmada = True
-                                st.session_state.confirmarexclusao = None
+                            if st.button(f"Excluir {user[0]}", key=f"delete_{user[0]}"):
+                                st.session_state.confirmarexclusao = user[0]
+                                st.session_state.usuario_a_excluir = user[1]
+                                st.session_state.exclusao_confirmada = False
                                 st.rerun()
 
-                        st.markdown("---")
+                        # Exibir a confirmação para excluir o usuário
+                        if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user[0] and not st.session_state.exclusao_confirmada:
+                            st.subheader(f"Você realmente deseja excluir o usuário {st.session_state.usuario_a_excluir}?")
+
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                if st.button("Sim", key=f"sim_{user[0]}"):
+                                    excluirusuario(user[0])
+                                    st.session_state.exclusao_confirmada = True
+                                    st.session_state.confirmarexclusao = None
+                                    st.rerun()
+
+                            with col2:
+                                if st.button("Não", key=f"nao_{user[0]}"):
+                                    st.session_state.exclusao_confirmada = True
+                                    st.session_state.confirmarexclusao = None
+                                    st.rerun()
+
+                            st.markdown("---")
 
             # Ajustes para visualização em dispositivos móveis
             st.set_page_config(layout="wide")
