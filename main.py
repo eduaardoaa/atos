@@ -5,10 +5,22 @@ import logging
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
 
-# Função para detectar se o dispositivo é móvel
+# Função para detectar se o dispositivo é móvel com JavaScript
 def is_mobile():
-    # Verifica se a largura da tela é menor que 800px (tamanho comum de dispositivos móveis)
-    return st.get_option('browser.width') < 800
+    if "is_mobile" not in st.session_state:
+        st.session_state.is_mobile = False
+        st.markdown(
+            """
+            <script>
+            if(window.innerWidth <= 800) {
+                window.parent.postMessage({is_mobile: true}, "*");
+            } else {
+                window.parent.postMessage({is_mobile: false}, "*");
+            }
+            </script>
+            """, unsafe_allow_html=True)
+    
+    return st.session_state.is_mobile
 
 def conexaobanco():
     try:
