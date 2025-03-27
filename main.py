@@ -75,8 +75,8 @@ if st.session_state.authenticated:
             def conectarbanco():
                 try:
                     conn = mysql.connector.connect(
-            host="mysql.railway.internal",
-            port=3306,
+            host="crossover.proxy.rlwy.net",
+            port=17025,
             user="root",
             password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
             database="railway"
