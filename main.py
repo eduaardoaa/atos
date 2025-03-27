@@ -90,7 +90,7 @@ if st.session_state.authenticated:
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
-                    cursor.execute("SELECT id, Nome/Empresa, usuario, senha, numero, permissao FROM usuarios ORDER BY id ASC")
+                    cursor.execute("SELECT id, NomeEmpresa, usuario, senha, numero, permissao FROM usuarios ORDER BY id ASC")
                     usuarios = cursor.fetchall()
                     conexao.close()
                     return usuarios
@@ -116,7 +116,7 @@ if st.session_state.authenticated:
                         return False
 
                     cursor.execute(
-                        "UPDATE usuarios SET Nome/Empresa = %s, usuario = %s, senha = %s, numero = %s, permissao = %s WHERE id = %s",
+                        "UPDATE usuarios SET NomeEmpresa = %s, usuario = %s, senha = %s, numero = %s, permissao = %s WHERE id = %s",
                         (nome_empresa, usuario, senha, numero, permissao, user_id)
                     )
                     conexao.commit()
@@ -155,7 +155,7 @@ if st.session_state.authenticated:
                         return False
 
                     cursor.execute(
-                        "INSERT INTO usuarios (Nome/Empresa, usuario, senha, numero, permissao) VALUES (%s, %s, %s, %s, %s)",
+                        "INSERT INTO usuarios (NomeEmpresa, usuario, senha, numero, permissao) VALUES (%s, %s, %s, %s, %s)",
                         (nome_empresa, usuario, senha, numero, permissao)
                     )
                     conexao.commit()
@@ -173,7 +173,7 @@ if st.session_state.authenticated:
                 st.subheader("Adicionar Novo Usuário")
 
                 with st.form(key="formnovousuario"):
-                    nome_empresa = st.text_input("Nome/Empresa")
+                    nome_empresa = st.text_input("NomeEmpresa")
                     usuario = st.text_input("Usuário")
                     senha = st.text_input("Senha", type="password")
                     numero = st.text_input("Número")
@@ -197,7 +197,7 @@ if st.session_state.authenticated:
                 st.subheader(f"Editar Usuário: {user[1]}")
 
                 with st.form(key=f"editarusuario{user[0]}"):
-                    nome_empresa = st.text_input("Nome/Empresa", value=user[1])
+                    nome_empresa = st.text_input("NomeEmpresa", value=user[1])
                     usuario = st.text_input("Usuário", value=user[2])
                     senha = st.text_input("Senha", value=user[3], type="password")
                     numero = st.text_input("Número", value=user[4])
@@ -214,7 +214,7 @@ if st.session_state.authenticated:
 
                 table_columns = [2, 10, 5, 5, 8, 4, 2, 2]
                 header = st.columns(table_columns)
-                headers = ["ID", "Nome/Empresa", "Usuário", "Senha", "Número", "Permissão", "Editar", "Excluir"]
+                headers = ["ID", "NomeEmpresa", "Usuário", "Senha", "Número", "Permissão", "Editar", "Excluir"]
 
                 for col, header_text in zip(header, headers):
                     with col:
@@ -224,7 +224,7 @@ if st.session_state.authenticated:
                     with st.container():
                         col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 10, 5, 5, 8, 4, 2, 2])
                         col1.write(user[0])  # ID
-                        col2.write(user[1])  # Nome/Empresa
+                        col2.write(user[1])  # NomeEmpresa
                         col3.write(user[2])  # Usuário
                         col4.write(user[3])  # Senha
                         col5.write(user[4])  # Número
