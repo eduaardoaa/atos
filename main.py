@@ -1,5 +1,9 @@
 import mysql.connector
 import streamlit as st
+import logging
+
+# Configuração do logger
+logging.basicConfig(level=logging.DEBUG)
 
 def conexaobanco():
     try:
@@ -10,9 +14,12 @@ def conexaobanco():
             password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
             database="railway"
         )
+        if conn.is_connected():
+            logging.debug("Conexão bem-sucedida ao banco de dados")
         return conn
     except mysql.connector.Error as e:
         st.error(f"Erro ao conectar ao banco de dados: {e}")
+        logging.error(f"Erro ao conectar ao banco de dados: {e}")
         return None
 
 if "authenticated" not in st.session_state:
@@ -26,8 +33,15 @@ def validacao(usr, passw):
     cursor = conn.cursor(dictionary=True)
 
     query = "SELECT * FROM usuarios WHERE usuario = %s AND senha = %s"
-    cursor.execute(query, (usr, passw))
-    user = cursor.fetchone()
+    try:
+        cursor.execute(query, (usr, passw))
+        user = cursor.fetchone()
+    except mysql.connector.Error as e:
+        st.error(f"Erro ao executar a consulta de validação: {e}")
+        logging.error(f"Erro ao executar a consulta de validação: {e}")
+        cursor.close()
+        conn.close()
+        return
 
     cursor.close()
     conn.close()
@@ -75,23 +89,29 @@ if st.session_state.authenticated:
             def conectarbanco():
                 try:
                     conn = mysql.connector.connect(
-            host="crossover.proxy.rlwy.net",
-            port=17025,
-            user="root",
-            password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
-            database="railway"
+                        host="crossover.proxy.rlwy.net",
+                        port=17025,
+                        user="root",
+                        password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
+                        database="railway"
                     )
                     return conn
                 except mysql.connector.Error as e:
                     st.error(f"Erro ao conectar ao banco de dados: {e}")
+                    logging.error(f"Erro ao conectar ao banco de dados: {e}")
                     return None
 
             def puxarusuarios():
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
-                    cursor.execute("SELECT id, NomeEmpresa, usuario, senha, telefone, permissao FROM usuarios ORDER BY id ASC")
-                    usuarios = cursor.fetchall()
+                    try:
+                        cursor.execute("SELECT id, NomeEmpresa, usuario, senha, telefone, permissao FROM usuarios ORDER BY id ASC")
+                        usuarios = cursor.fetchall()
+                    except mysql.connector.Error as e:
+                        st.error(f"Erro ao executar a consulta para puxar usuários: {e}")
+                        logging.error(f"Erro ao executar a consulta para puxar usuários: {e}")
+                        return []
                     conexao.close()
                     return usuarios
                 return []
@@ -101,25 +121,31 @@ if st.session_state.authenticated:
                 if conexao:
                     cursor = conexao.cursor()
 
-                    cursor.execute("SELECT id FROM usuarios WHERE usuario = %s", (usuario,))
-                    usuario_existente = cursor.fetchone()
+                    try:
+                        cursor.execute("SELECT id FROM usuarios WHERE usuario = %s", (usuario,))
+                        usuario_existente = cursor.fetchone()
 
-                    cursor.execute("SELECT id FROM usuarios WHERE telefone = %s", (telefone,))
-                    telefone_existente = cursor.fetchone()
+                        cursor.execute("SELECT id FROM usuarios WHERE telefone = %s", (telefone,))
+                        telefone_existente = cursor.fetchone()
 
-                    if usuario_existente and usuario_existente[0] != user_id:
-                        st.error("Nome de usuário já está sendo utilizado por outro usuário.")
+                        if usuario_existente and usuario_existente[0] != user_id:
+                            st.error("Nome de usuário já está sendo utilizado por outro usuário.")
+                            return False
+
+                        if telefone_existente and telefone_existente[0] != user_id:
+                            st.error("Número já está sendo utilizado por outro usuário.")
+                            return False
+
+                        cursor.execute(
+                            "UPDATE usuarios SET NomeEmpresa = %s, usuario = %s, senha = %s, telefone = %s, permissao = %s WHERE id = %s",
+                            (nome_empresa, usuario, senha, telefone, permissao, user_id)
+                        )
+                        conexao.commit()
+                    except mysql.connector.Error as e:
+                        st.error(f"Erro ao atualizar o usuário: {e}")
+                        logging.error(f"Erro ao atualizar o usuário: {e}")
+                        conexao.rollback()
                         return False
-
-                    if telefone_existente and telefone_existente[0] != user_id:
-                        st.error("Número já está sendo utilizado por outro usuário.")
-                        return False
-
-                    cursor.execute(
-                        "UPDATE usuarios SET NomeEmpresa = %s, usuario = %s, senha = %s, telefone = %s, permissao = %s WHERE id = %s",
-                        (nome_empresa, usuario, senha, telefone, permissao, user_id)
-                    )
-                    conexao.commit()
                     conexao.close()
                     return True
                 return False
@@ -128,37 +154,45 @@ if st.session_state.authenticated:
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
-                    cursor.execute("DELETE FROM usuarios WHERE id = %s", (user_id,))
-                    conexao.commit()
+                    try:
+                        cursor.execute("DELETE FROM usuarios WHERE id = %s", (user_id,))
+                        conexao.commit()
+                        st.success("Usuário excluído com sucesso!")
+                    except mysql.connector.Error as e:
+                        st.error(f"Erro ao excluir o usuário: {e}")
+                        logging.error(f"Erro ao excluir o usuário: {e}")
                     conexao.close()
-                    st.success("Usuário excluído com sucesso!")
 
             def novousuario(nome_empresa, usuario, senha, telefone, permissao):
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
 
-                    # Verifica se o nome de usuário já existe
-                    cursor.execute("SELECT COUNT(*) FROM usuarios WHERE usuario = %s", (usuario,))
-                    count_usuario = cursor.fetchone()[0]
+                    try:
+                        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE usuario = %s", (usuario,))
+                        count_usuario = cursor.fetchone()[0]
 
-                    # Verifica se o número já existe
-                    cursor.execute("SELECT COUNT(*) FROM usuarios WHERE telefone = %s", (telefone,))
-                    count_telefone = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE telefone = %s", (telefone,))
+                        count_telefone = cursor.fetchone()[0]
 
-                    if count_usuario > 0:
-                        st.error("Nome de usuário já está sendo utilizado.")
+                        if count_usuario > 0:
+                            st.error("Nome de usuário já está sendo utilizado.")
+                            return False
+
+                        if count_telefone > 0:
+                            st.error("Número já está sendo utilizado.")
+                            return False
+
+                        cursor.execute(
+                            "INSERT INTO usuarios (NomeEmpresa, usuario, senha, telefone, permissao) VALUES (%s, %s, %s, %s, %s)",
+                            (nome_empresa, usuario, senha, telefone, permissao)
+                        )
+                        conexao.commit()
+                    except mysql.connector.Error as e:
+                        st.error(f"Erro ao adicionar novo usuário: {e}")
+                        logging.error(f"Erro ao adicionar novo usuário: {e}")
+                        conexao.rollback()
                         return False
-
-                    if count_telefone > 0:
-                        st.error("Número já está sendo utilizado.")
-                        return False
-
-                    cursor.execute(
-                        "INSERT INTO usuarios (NomeEmpresa, usuario, senha, telefone, permissao) VALUES (%s, %s, %s, %s, %s)",
-                        (nome_empresa, usuario, senha, telefone, permissao)
-                    )
-                    conexao.commit()
                     conexao.close()
                     return True
                 return False
@@ -288,5 +322,6 @@ if st.session_state.authenticated:
         elif st.session_state.page == "dashboard":
             # Configuração da página do dashboard
             st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
-            st.title("DASHBOARD")
-            # Aqui você pode incluir o conteúdo da página de cliente
+            st.title("Dashboard de Usuários")
+            st.write("Aqui você pode visualizar as informações dos usuários.")
+            st.write("Em construção...")
