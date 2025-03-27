@@ -5,6 +5,12 @@ import logging
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
 
+# Função para detectar se o usuário está em dispositivo móvel
+def is_mobile():
+    # A maneira mais simples de detectar o dispositivo móvel é com base no tamanho da janela
+    # No Streamlit, podemos usar a função de "beta_expander" para verificar o dispositivo
+    return st.config.get_option("theme.mobile")
+
 def conexaobanco():
     try:
         conn = mysql.connector.connect(
@@ -82,7 +88,6 @@ if not st.session_state.authenticated:
 if st.session_state.authenticated:
     if "page" in st.session_state:
         if st.session_state.page == "adm":
-            # Aqui começa a parte do admin que você pediu para adicionar
             import streamlit as st
             import mysql.connector
 
@@ -243,6 +248,11 @@ if st.session_state.authenticated:
                             st.session_state.editar_usuario = None
                             st.rerun()
 
+            # Função para detectar se é dispositivo móvel e adicionar rótulos
+            def is_mobile():
+                return st.config.get_option("theme.mobile")
+
+            # Função para listar usuários, agora com labels para celular
             def listarusuarios():
                 usuarios = puxarusuarios()
 
@@ -250,25 +260,37 @@ if st.session_state.authenticated:
                 header = st.columns(table_columns)
                 headers = ["ID", "NomeEmpresa", "Usuário", "Senha", "Número", "Permissão", "Editar", "Excluir"]
 
+                # Exibir cabeçalhos das colunas
                 for col, header_text in zip(header, headers):
                     with col:
                         st.write(f"**{header_text}**")
 
+                # Exibir a lista de usuários
                 for user in usuarios:
                     with st.container():
                         col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 10, 5, 5, 8, 4, 2, 2])
-                        col1.write(user[0])  # ID
-                        col2.write(user[1])  # NomeEmpresa
-                        col3.write(user[2])  # Usuário
-                        col4.write(user[3])  # Senha
-                        col5.write(user[4])  # Número
-                        col6.write(user[5])  # Permissão
+                        
+                        # Se for dispositivo móvel, adicionar os rótulos antes dos valores
+                        if is_mobile():
+                            col1.write(f"**ID:** {user[0]}")
+                            col2.write(f"**NomeEmpresa:** {user[1]}")
+                            col3.write(f"**Usuário:** {user[2]}")
+                            col4.write(f"**Senha:** {user[3]}")
+                            col5.write(f"**Número:** {user[4]}")
+                            col6.write(f"**Permissão:** {user[5]}")
+                        else:
+                            col1.write(user[0])  # ID
+                            col2.write(user[1])  # NomeEmpresa
+                            col3.write(user[2])  # Usuário
+                            col4.write(user[3])  # Senha
+                            col5.write(user[4])  # Número
+                            col6.write(user[5])  # Permissão
 
+                        # Botões de edição e exclusão
                         if col7.button("✏️", key=f"edit_{user[0]}"):
                             st.session_state.editar_usuario = user[0]
                             st.rerun()
-                        
-                        # Confirmar exclusão
+
                         if col8.button("🗑️", key=f"delete_{user[0]}"):
                             st.session_state.confirmarexclusao = user[0]
                             st.session_state.usuario_a_excluir = user[1]
