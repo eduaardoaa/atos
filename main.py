@@ -5,6 +5,11 @@ import logging
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
 
+# Função para detectar se o dispositivo é móvel
+def is_mobile():
+    # Verifica se a largura da tela é menor que 800px (tamanho comum de dispositivos móveis)
+    return st.get_option('browser.width') < 800
+
 def conexaobanco():
     try:
         conn = mysql.connector.connect(
@@ -257,25 +262,38 @@ if st.session_state.authenticated:
                 for user in usuarios:
                     with st.container():
                         col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 10, 5, 5, 8, 4, 2, 2])
-                        col1.write(user[0])  # ID
-                        col2.write(user[1])  # NomeEmpresa
-                        col3.write(user[2])  # Usuário
-                        col4.write(user[3])  # Senha
-                        col5.write(user[4])  # Número
-                        col6.write(user[5])  # Permissão
+
+                        if is_mobile():
+                            col1.write("ID:")
+                            col1.write(user[0])  # ID
+                            col2.write("Nome da Empresa:")
+                            col2.write(user[1])  # NomeEmpresa
+                            col3.write("Usuário:")
+                            col3.write(user[2])  # Usuário
+                            col4.write("Senha:")
+                            col4.write(user[3])  # Senha
+                            col5.write("Número:")
+                            col5.write(user[4])  # Número
+                            col6.write("Permissão:")
+                            col6.write(user[5])  # Permissão
+                        else:
+                            col1.write(user[0])  # ID
+                            col2.write(user[1])  # NomeEmpresa
+                            col3.write(user[2])  # Usuário
+                            col4.write(user[3])  # Senha
+                            col5.write(user[4])  # Número
+                            col6.write(user[5])  # Permissão
 
                         if col7.button("✏️", key=f"edit_{user[0]}"):
                             st.session_state.editar_usuario = user[0]
                             st.rerun()
-                        
-                        # Confirmar exclusão
+
                         if col8.button("🗑️", key=f"delete_{user[0]}"):
                             st.session_state.confirmarexclusao = user[0]
                             st.session_state.usuario_a_excluir = user[1]
                             st.session_state.exclusao_confirmada = False
                             st.rerun()
 
-                    # Exibir a confirmação para excluir o usuário
                     if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user[0] and not st.session_state.exclusao_confirmada:
                         st.subheader(f"Você realmente deseja excluir o usuário {st.session_state.usuario_a_excluir}?")
 
@@ -325,4 +343,3 @@ if st.session_state.authenticated:
             st.title("Dashboard de Usuários")
             st.write("Aqui você pode visualizar as informações dos usuários.")
             st.write("Em construção...")
-
