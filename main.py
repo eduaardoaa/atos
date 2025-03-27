@@ -245,30 +245,23 @@ if st.session_state.authenticated:
             def listarusuarios():
                 usuarios = puxarusuarios()
 
-                table_columns = [2, 10, 5, 5, 8, 4, 2, 2]
-                header = st.columns(table_columns)
-                headers = ["ID", "NomeEmpresa", "Usuário", "Senha", "Número", "Permissão", "Editar", "Excluir"]
-
-                for col, header_text in zip(header, headers):
-                    with col:
-                        st.write(f"**{header_text}**")
-
+                # Para dispositivos móveis, exibimos as informações com rótulos antes de cada valor
                 for user in usuarios:
-                    with st.container():
-                        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 10, 5, 5, 8, 4, 2, 2])
-                        col1.write(user[0])  # ID
-                        col2.write(user[1])  # NomeEmpresa
-                        col3.write(user[2])  # Usuário
-                        col4.write(user[3])  # Senha
-                        col5.write(user[4])  # Número
-                        col6.write(user[5])  # Permissão
+                    st.markdown(f"### Usuário {user[0]}")
+                    st.write(f"**Nome da Empresa:** {user[1]}")
+                    st.write(f"**Usuário:** {user[2]}")
+                    st.write(f"**Senha:** {user[3]}")
+                    st.write(f"**Número:** {user[4]}")
+                    st.write(f"**Permissão:** {user[5]}")
 
-                        if col7.button("✏️", key=f"edit_{user[0]}"):
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        if st.button(f"Editar {user[0]}", key=f"edit_{user[0]}"):
                             st.session_state.editar_usuario = user[0]
                             st.rerun()
-                        
-                        # Confirmar exclusão
-                        if col8.button("🗑️", key=f"delete_{user[0]}"):
+                    
+                    with col2:
+                        if st.button(f"Excluir {user[0]}", key=f"delete_{user[0]}"):
                             st.session_state.confirmarexclusao = user[0]
                             st.session_state.usuario_a_excluir = user[1]
                             st.session_state.exclusao_confirmada = False
