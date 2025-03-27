@@ -5,6 +5,7 @@ import logging
 # Configuração do logger
 logging.basicConfig(level=logging.DEBUG)
 
+# Função de conexão com banco de dados
 def conexaobanco():
     try:
         conn = mysql.connector.connect(
@@ -22,6 +23,7 @@ def conexaobanco():
         logging.error(f"Erro ao conectar ao banco de dados: {e}")
         return None
 
+# Página principal de login
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
@@ -63,7 +65,6 @@ def validacao(usr, passw):
     else:
         st.error('Usuário ou senha incorretos, tente novamente.')
 
-# Página principal de login
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -79,13 +80,11 @@ if not st.session_state.authenticated:
     if botaoentrar:
         validacao(username, password)
 
+# Página de Admin e Dashboard
 if st.session_state.authenticated:
     if "page" in st.session_state:
         if st.session_state.page == "adm":
-            # Aqui começa a parte do admin que você pediu para adicionar
-            import streamlit as st
-            import mysql.connector
-
+            # Funções de conexão e manipulação do banco de dados
             def conectarbanco():
                 try:
                     conn = mysql.connector.connect(
@@ -295,18 +294,19 @@ if st.session_state.authenticated:
 
                         st.markdown("---")
 
+            # Ajustes para visualização em dispositivos móveis
             st.set_page_config(layout="wide")
             st.title("Gerenciamento de Usuários")
 
             col1, col2 = st.columns([1, 1])
 
             with col1:
-                if st.button("Adicionar Novo Usuário"):
+                if st.button("Adicionar Novo Usuário", use_container_width=True):
                     st.session_state.novousuario = True
                     st.rerun()
 
             with col2:
-                if st.button("Dashboard"):
+                if st.button("Dashboard", use_container_width=True):
                     st.session_state.page = "dashboard"  # Redireciona para o dashboard
                     st.rerun()
 
@@ -320,7 +320,7 @@ if st.session_state.authenticated:
                 formularioeditarusuario(usuario_editar)
 
         elif st.session_state.page == "dashboard":
-            # Configuração da página do dashboard
+            # Página do Dashboard
             st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
             st.title("Dashboard de Usuários")
             st.write("Aqui você pode visualizar as informações dos usuários.")
