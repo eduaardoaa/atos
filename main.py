@@ -10,8 +10,6 @@ def conexaobanco():
             password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
             database="railway"
         )
-        if conn.is_connected():
-            st.success("Conexão bem-sucedida!")
         return conn
     except mysql.connector.Error as e:
         st.error(f"Erro ao conectar ao banco de dados: {e}")
@@ -77,14 +75,12 @@ if st.session_state.authenticated:
             def conectarbanco():
                 try:
                     conn = mysql.connector.connect(
-                        host="crossover.proxy.rlwy.net",
-                        port=17025,
-                        user="root",
-                        password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
-                        database="railway"
+            host="crossover.proxy.rlwy.net",
+            port=17025,
+            user="root",
+            password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
+            database="railway"
                     )
-                    if conn.is_connected():
-                        st.success("Conexão bem-sucedida!")
                     return conn
                 except mysql.connector.Error as e:
                     st.error(f"Erro ao conectar ao banco de dados: {e}")
@@ -94,17 +90,10 @@ if st.session_state.authenticated:
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
-                    try:
-                        cursor.execute("SELECT id, NomeEmpresa, usuario, senha, numero, permissao FROM usuarios ORDER BY id ASC")
-                        usuarios = cursor.fetchall()
-                        st.write(usuarios)  # Exibe os resultados para depuração
-                        return usuarios
-                    except mysql.connector.Error as e:
-                        st.error(f"Erro ao executar consulta: {e}")
-                        return []
-                    finally:
-                        cursor.close()
-                        conexao.close()
+                    cursor.execute("SELECT id, NomeEmpresa, usuario, senha, numero, permissao FROM usuarios ORDER BY id ASC")
+                    usuarios = cursor.fetchall()
+                    conexao.close()
+                    return usuarios
                 return []
 
             def atualizacaousuarios(user_id, nome_empresa, usuario, senha, numero, permissao):
@@ -240,21 +229,64 @@ if st.session_state.authenticated:
                         col4.write(user[3])  # Senha
                         col5.write(user[4])  # Número
                         col6.write(user[5])  # Permissão
-                        with col7:
-                            if st.button("✏️", key=f"editar{user[0]}"):
-                                st.session_state.editar_usuario = user
+
+                        if col7.button("✏️", key=f"edit_{user[0]}"):
+                            st.session_state.editar_usuario = user[0]
+                            st.rerun()
+                        
+                        # Confirmar exclusão
+                        if col8.button("🗑️", key=f"delete_{user[0]}"):
+                            st.session_state.confirmarexclusao = user[0]
+                            st.session_state.usuario_a_excluir = user[1]
+                            st.session_state.exclusao_confirmada = False
+                            st.rerun()
+
+                    # Exibir a confirmação para excluir o usuário
+                    if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user[0] and not st.session_state.exclusao_confirmada:
+                        st.subheader(f"Você realmente deseja excluir o usuário {st.session_state.usuario_a_excluir}?")
+
+                        col1, col2 = st.columns([1, 1])
+                        with col1:
+                            if st.button("Sim", key=f"sim_{user[0]}"):
+                                excluirusuario(user[0])
+                                st.session_state.exclusao_confirmada = True
+                                st.session_state.confirmarexclusao = None
                                 st.rerun()
 
-                        with col8:
-                            if st.button("❌", key=f"excluir{user[0]}"):
-                                excluirusuario(user[0])
-                                st.session_state.editar_usuario = None
+                        with col2:
+                            if st.button("Não", key=f"nao_{user[0]}"):
+                                st.session_state.exclusao_confirmada = True
+                                st.session_state.confirmarexclusao = None
                                 st.rerun()
+
+                        st.markdown("---")
+
+            st.set_page_config(layout="wide")
+            st.title("Gerenciamento de Usuários")
+
+            col1, col2 = st.columns([1, 1])
+
+            with col1:
+                if st.button("Adicionar Novo Usuário"):
+                    st.session_state.novousuario = True
+                    st.rerun()
+
+            with col2:
+                if st.button("Dashboard"):
+                    st.session_state.page = "dashboard"  # Redireciona para o dashboard
+                    st.rerun()
+
+            if "novousuario" in st.session_state and st.session_state.novousuario:
+                formularionovousuario()
+
+            listarusuarios()
 
             if "editar_usuario" in st.session_state and st.session_state.editar_usuario:
-                formularioeditarusuario(st.session_state.editar_usuario)
+                usuario_editar = next(user for user in puxarusuarios() if user[0] == st.session_state.editar_usuario)
+                formularioeditarusuario(usuario_editar)
 
-            elif st.session_state.get("novousuario"):
-                formularionovousuario()
-            else:
-                listarusuarios()
+        elif st.session_state.page == "dashboard":
+            # Configuração da página do dashboard
+            st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
+            st.title("DASHBOARD")
+            # Aqui você pode incluir o conteúdo da página de cliente
