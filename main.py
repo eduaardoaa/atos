@@ -1,4 +1,3 @@
-
 import mysql.connector
 import streamlit as st
 
@@ -70,27 +69,37 @@ if st.session_state.authenticated:
     if "page" in st.session_state:
         if st.session_state.page == "adm":
             # Aqui começa a parte do admin que você pediu para adicionar
+            import streamlit as st
+            import mysql.connector
+
+            def conectarbanco():
+                try:
+                    conn = mysql.connector.connect(
+            host="crossover.proxy.rlwy.net",
+            port=17025,
+            user="root",
+            password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
+            database="railway"
+                    )
+                    return conn
+                except mysql.connector.Error as e:
+                    st.error(f"Erro ao conectar ao banco de dados: {e}")
+                    return None
 
             def puxarusuarios():
-                conn = conexaobanco()
-                if not conn:
-                    return []
-
-                try:
-                    cursor = conn.cursor(dictionary=True)
+                conexao = conectarbanco()
+                if conexao:
+                    cursor = conexao.cursor()
                     cursor.execute("SELECT id, NomeEmpresa, usuario, senha, telefone, permissao FROM usuarios ORDER BY id ASC")
                     usuarios = cursor.fetchall()
-                    cursor.close()
-                    conn.close()
+                    conexao.close()
                     return usuarios
-                except mysql.connector.Error as e:
-                    st.error(f"Erro ao consultar os usuários: {e}")
-                    return []
+                return []
 
             def atualizacaousuarios(user_id, nome_empresa, usuario, senha, telefone, permissao):
-                conn = conexaobanco()
-                if conn:
-                    cursor = conn.cursor()
+                conexao = conectarbanco()
+                if conexao:
+                    cursor = conexao.cursor()
 
                     cursor.execute("SELECT id FROM usuarios WHERE usuario = %s", (usuario,))
                     usuario_existente = cursor.fetchone()
@@ -110,28 +119,30 @@ if st.session_state.authenticated:
                         "UPDATE usuarios SET NomeEmpresa = %s, usuario = %s, senha = %s, telefone = %s, permissao = %s WHERE id = %s",
                         (nome_empresa, usuario, senha, telefone, permissao, user_id)
                     )
-                    conn.commit()
-                    conn.close()
+                    conexao.commit()
+                    conexao.close()
                     return True
                 return False
 
             def excluirusuario(user_id):
-                conn = conexaobanco()
-                if conn:
-                    cursor = conn.cursor()
+                conexao = conectarbanco()
+                if conexao:
+                    cursor = conexao.cursor()
                     cursor.execute("DELETE FROM usuarios WHERE id = %s", (user_id,))
-                    conn.commit()
-                    conn.close()
+                    conexao.commit()
+                    conexao.close()
                     st.success("Usuário excluído com sucesso!")
 
             def novousuario(nome_empresa, usuario, senha, telefone, permissao):
-                conn = conexaobanco()
-                if conn:
-                    cursor = conn.cursor()
+                conexao = conectarbanco()
+                if conexao:
+                    cursor = conexao.cursor()
 
+                    # Verifica se o nome de usuário já existe
                     cursor.execute("SELECT COUNT(*) FROM usuarios WHERE usuario = %s", (usuario,))
                     count_usuario = cursor.fetchone()[0]
 
+                    # Verifica se o número já existe
                     cursor.execute("SELECT COUNT(*) FROM usuarios WHERE telefone = %s", (telefone,))
                     count_telefone = cursor.fetchone()[0]
 
@@ -147,8 +158,8 @@ if st.session_state.authenticated:
                         "INSERT INTO usuarios (NomeEmpresa, usuario, senha, telefone, permissao) VALUES (%s, %s, %s, %s, %s)",
                         (nome_empresa, usuario, senha, telefone, permissao)
                     )
-                    conn.commit()
-                    conn.close()
+                    conexao.commit()
+                    conexao.close()
                     return True
                 return False
 
@@ -201,10 +212,6 @@ if st.session_state.authenticated:
             def listarusuarios():
                 usuarios = puxarusuarios()
 
-                if not usuarios:
-                    st.warning("Nenhum usuário encontrado ou erro na consulta.")
-                    return
-
                 table_columns = [2, 10, 5, 5, 8, 4, 2, 2]
                 header = st.columns(table_columns)
                 headers = ["ID", "NomeEmpresa", "Usuário", "Senha", "Número", "Permissão", "Editar", "Excluir"]
@@ -216,38 +223,38 @@ if st.session_state.authenticated:
                 for user in usuarios:
                     with st.container():
                         col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 10, 5, 5, 8, 4, 2, 2])
-                        col1.write(user["id"])  # ID
-                        col2.write(user["NomeEmpresa"])  # NomeEmpresa
-                        col3.write(user["usuario"])  # Usuário
-                        col4.write(user["senha"])  # Senha
-                        col5.write(user["telefone"])  # Número
-                        col6.write(user["permissao"])  # Permissão
+                        col1.write(user[0])  # ID
+                        col2.write(user[1])  # NomeEmpresa
+                        col3.write(user[2])  # Usuário
+                        col4.write(user[3])  # Senha
+                        col5.write(user[4])  # Número
+                        col6.write(user[5])  # Permissão
 
-                        if col7.button("✏️", key=f"edit_{user['id']}"):
-                            st.session_state.editar_usuario = user['id']
+                        if col7.button("✏️", key=f"edit_{user[0]}"):
+                            st.session_state.editar_usuario = user[0]
                             st.rerun()
                         
                         # Confirmar exclusão
-                        if col8.button("🗑️", key=f"delete_{user['id']}"):
-                            st.session_state.confirmarexclusao = user['id']
-                            st.session_state.usuario_a_excluir = user["usuario"]
+                        if col8.button("🗑️", key=f"delete_{user[0]}"):
+                            st.session_state.confirmarexclusao = user[0]
+                            st.session_state.usuario_a_excluir = user[1]
                             st.session_state.exclusao_confirmada = False
                             st.rerun()
 
                     # Exibir a confirmação para excluir o usuário
-                    if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user["id"] and not st.session_state.exclusao_confirmada:
+                    if "confirmarexclusao" in st.session_state and st.session_state.confirmarexclusao == user[0] and not st.session_state.exclusao_confirmada:
                         st.subheader(f"Você realmente deseja excluir o usuário {st.session_state.usuario_a_excluir}?")
 
                         col1, col2 = st.columns([1, 1])
                         with col1:
-                            if st.button("Sim", key=f"sim_{user['id']}"):
-                                excluirusuario(user['id'])
+                            if st.button("Sim", key=f"sim_{user[0]}"):
+                                excluirusuario(user[0])
                                 st.session_state.exclusao_confirmada = True
                                 st.session_state.confirmarexclusao = None
                                 st.rerun()
 
                         with col2:
-                            if st.button("Não", key=f"nao_{user['id']}"):
+                            if st.button("Não", key=f"nao_{user[0]}"):
                                 st.session_state.exclusao_confirmada = True
                                 st.session_state.confirmarexclusao = None
                                 st.rerun()
@@ -265,12 +272,21 @@ if st.session_state.authenticated:
                     st.rerun()
 
             with col2:
-                if st.button("Atualizar Usuários"):
-                    listarusuarios()
+                if st.button("Dashboard"):
+                    st.session_state.page = "dashboard"  # Redireciona para o dashboard
+                    st.rerun()
 
             if "novousuario" in st.session_state and st.session_state.novousuario:
                 formularionovousuario()
-            
+
+            listarusuarios()
+
             if "editar_usuario" in st.session_state and st.session_state.editar_usuario:
-                user_to_edit = [user for user in puxarusuarios() if user['id'] == st.session_state.editar_usuario][0]
-                formularioeditarusuario(user_to_edit)
+                usuario_editar = next(user for user in puxarusuarios() if user[0] == st.session_state.editar_usuario)
+                formularioeditarusuario(usuario_editar)
+
+        elif st.session_state.page == "dashboard":
+            # Configuração da página do dashboard
+            st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
+            st.title("DASHBOARD")
+            # Aqui você pode incluir o conteúdo da página de cliente
