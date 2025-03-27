@@ -1,20 +1,19 @@
 import mysql.connector
 import streamlit as st
-import os
 
 def conexaobanco():
     try:
         conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+            host="crossover.proxy.rlwy.net",
+            port=17025,
+            user="root",
+            password="nwiMDSsxmcmDXWChimBQOIswEFlTUMms",
+            database="railway"
         )
         return conn
     except mysql.connector.Error as e:
         st.error(f"Erro ao conectar ao banco de dados: {e}")
         return None
-
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
