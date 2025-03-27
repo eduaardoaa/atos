@@ -106,7 +106,7 @@ if st.session_state.authenticated:
                 if conexao:
                     cursor = conexao.cursor()
                     try:
-                        cursor.execute("SELECT id, NomeEmpresa, usuario, senha, telefone, permissao FROM usuarios ORDER BY id ASC")
+                        cursor.execute("SELECT id, NomeEmpresa, usuario, senha, numero, permissao FROM usuarios ORDER BY id ASC")
                         usuarios = cursor.fetchall()
                     except mysql.connector.Error as e:
                         st.error(f"Erro ao executar a consulta para puxar usuários: {e}")
@@ -116,7 +116,7 @@ if st.session_state.authenticated:
                     return usuarios
                 return []
 
-            def atualizacaousuarios(user_id, nome_empresa, usuario, senha, telefone, permissao):
+            def atualizacaousuarios(user_id, nome_empresa, usuario, senha, numero, permissao):
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
@@ -125,20 +125,20 @@ if st.session_state.authenticated:
                         cursor.execute("SELECT id FROM usuarios WHERE usuario = %s", (usuario,))
                         usuario_existente = cursor.fetchone()
 
-                        cursor.execute("SELECT id FROM usuarios WHERE telefone = %s", (telefone,))
-                        telefone_existente = cursor.fetchone()
+                        cursor.execute("SELECT id FROM usuarios WHERE numero = %s", (numero,))
+                        numero_existente = cursor.fetchone()
 
                         if usuario_existente and usuario_existente[0] != user_id:
                             st.error("Nome de usuário já está sendo utilizado por outro usuário.")
                             return False
 
-                        if telefone_existente and telefone_existente[0] != user_id:
+                        if numero_existente and numero_existente[0] != user_id:
                             st.error("Número já está sendo utilizado por outro usuário.")
                             return False
 
                         cursor.execute(
-                            "UPDATE usuarios SET NomeEmpresa = %s, usuario = %s, senha = %s, telefone = %s, permissao = %s WHERE id = %s",
-                            (nome_empresa, usuario, senha, telefone, permissao, user_id)
+                            "UPDATE usuarios SET NomeEmpresa = %s, usuario = %s, senha = %s, numero = %s, permissao = %s WHERE id = %s",
+                            (nome_empresa, usuario, senha, numero, permissao, user_id)
                         )
                         conexao.commit()
                     except mysql.connector.Error as e:
@@ -163,7 +163,7 @@ if st.session_state.authenticated:
                         logging.error(f"Erro ao excluir o usuário: {e}")
                     conexao.close()
 
-            def novousuario(nome_empresa, usuario, senha, telefone, permissao):
+            def novousuario(nome_empresa, usuario, senha, numero, permissao):
                 conexao = conectarbanco()
                 if conexao:
                     cursor = conexao.cursor()
@@ -172,20 +172,20 @@ if st.session_state.authenticated:
                         cursor.execute("SELECT COUNT(*) FROM usuarios WHERE usuario = %s", (usuario,))
                         count_usuario = cursor.fetchone()[0]
 
-                        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE telefone = %s", (telefone,))
-                        count_telefone = cursor.fetchone()[0]
+                        cursor.execute("SELECT COUNT(*) FROM usuarios WHERE numero = %s", (numero,))
+                        count_numero = cursor.fetchone()[0]
 
                         if count_usuario > 0:
                             st.error("Nome de usuário já está sendo utilizado.")
                             return False
 
-                        if count_telefone > 0:
+                        if count_numero > 0:
                             st.error("Número já está sendo utilizado.")
                             return False
 
                         cursor.execute(
-                            "INSERT INTO usuarios (NomeEmpresa, usuario, senha, telefone, permissao) VALUES (%s, %s, %s, %s, %s)",
-                            (nome_empresa, usuario, senha, telefone, permissao)
+                            "INSERT INTO usuarios (NomeEmpresa, usuario, senha, numero, permissao) VALUES (%s, %s, %s, %s, %s)",
+                            (nome_empresa, usuario, senha, numero, permissao)
                         )
                         conexao.commit()
                     except mysql.connector.Error as e:
@@ -210,13 +210,13 @@ if st.session_state.authenticated:
                     nome_empresa = st.text_input("NomeEmpresa")
                     usuario = st.text_input("Usuário")
                     senha = st.text_input("Senha", type="password")
-                    telefone = st.text_input("Número")
+                    numero = st.text_input("Número")
                     permissao = st.radio("Permissão", ["adm", "cliente"])
 
                     submit_button = st.form_submit_button(label="Adicionar Usuário")
 
                     if submit_button:
-                        if novousuario(nome_empresa, usuario, senha, telefone, permissao):
+                        if novousuario(nome_empresa, usuario, senha, numero, permissao):
                             st.session_state.mensagem = "Novo usuário cadastrado com sucesso!"
                             st.session_state.novousuario = False
                             st.rerun()
@@ -234,12 +234,12 @@ if st.session_state.authenticated:
                     nome_empresa = st.text_input("NomeEmpresa", value=user[1])
                     usuario = st.text_input("Usuário", value=user[2])
                     senha = st.text_input("Senha", value=user[3], type="password")
-                    telefone = st.text_input("Número", value=user[4])
+                    numero = st.text_input("Número", value=user[4])
                     permissao = st.radio("Permissão", ["adm", "cliente"], index=0 if user[5] == "adm" else 1)
                     submit_button = st.form_submit_button(label="Atualizar Usuário")
 
                     if submit_button:
-                        if atualizacaousuarios(user[0], nome_empresa, usuario, senha, telefone, permissao):
+                        if atualizacaousuarios(user[0], nome_empresa, usuario, senha, numero, permissao):
                             st.session_state.editar_usuario = None
                             st.rerun()
 
