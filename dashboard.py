@@ -8,14 +8,6 @@ import locale as lc
 import consultaSQL
 import sys
 from inspect import getmembers, isfunction
-from decimal import Decimal
-import numpy as np
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-import locale as lc
-import consultaSQL
 from datetime import datetime, timedelta
 
 lc.setlocale(lc.LC_ALL, 'pt_BR')
