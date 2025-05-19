@@ -9,8 +9,9 @@ import sys
 from inspect import getmembers, isfunction
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
+import os
+os.system('locale-gen pt_BR.UTF-8')
 
-lc.setlocale(lc.LC_ALL, 'pt_BR')
 
 def verificar_autenticacao():
     """Verifica se o usuário está autenticado"""
