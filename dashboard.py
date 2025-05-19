@@ -332,7 +332,8 @@ def paginaatos():
 
             with col1:
                 st.write(f"""#### Vendas 2024: \n 
-                        R$ {lc.currency(total_vendas, grouping=True, symbol=False)}
+                        f"R$ {total_vendas:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
                         """)
             with col2:
                 st.write(f"""#### Acumulado 2024: \n
