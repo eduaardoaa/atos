@@ -13,14 +13,38 @@ import base64
 # Local imports
 import consultaSQL
 
-# Configuração do locale para formatação em Português Brasileiro
-try:
-    lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')  # Padrão para Linux/Cloud
-except lc.Error:
+# Configuração do locale com tratamento mais robusto
+def configure_locale():
+    locales_to_try = [
+        'pt_BR.UTF-8',        # Linux/Cloud padrão
+        'Portuguese_Brazil.1252',  # Windows
+        'pt_BR',              # Fallback genérico
+        'pt_PT.UTF-8',        # Alternativa portuguesa
+        'en_US.UTF-8',        # Inglês como último recurso
+        ''                    # Locale padrão do sistema
+    ]
+    
+    for loc in locales_to_try:
+        try:
+            lc.setlocale(lc.LC_ALL, loc)
+            st.session_state['locale_configured'] = loc
+            break
+        except lc.Error:
+            continue
+    else:
+        st.warning("Não foi possível configurar o locale específico. Usando configuração padrão do sistema.")
+        lc.setlocale(lc.LC_ALL, '')
+
+configure_locale()
+
+# Função alternativa para formatação de moeda que não depende do locale
+def format_currency(value, symbol='R$ '):
+    """Formata valores monetários sem depender do locale"""
     try:
-        lc.setlocale(lc.LC_ALL, 'Portuguese_Brazil.1252')  # Windows
-    except lc.Error:
-        lc.setlocale(lc.LC_ALL, 'pt_BR')  # Fallback
+        value = float(value)
+        return f"{symbol}{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return f"{symbol}0,00"
 
 # Função para carregar imagens em base64 (melhor para Streamlit Cloud)
 @st.cache_data
@@ -30,7 +54,7 @@ def load_image_base64(path):
             encoded_string = base64.b64encode(image_file.read()).decode()
         return f"data:image/png;base64,{encoded_string}"
     except FileNotFoundError:
-        st.error("Imagem não encontrada")
+        st.error(f"Imagem não encontrada: {path}")
         return None
 
 def verificar_autenticacao():
@@ -91,8 +115,8 @@ def create_bar_chart(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_v
 
     fig = go.Figure()
     
-    texto_formatado = [f"R$ {lc.currency(v, grouping=True, symbol=False)}" for v in valores]
-    hover_texto = [f"{cat}<br>R$ {lc.currency(v, grouping=True, symbol=False)}" for cat, v in zip(categorias, valores)]
+    texto_formatado = [format_currency(v) for v in valores]
+    hover_texto = [f"{cat}<br>{format_currency(v)}" for cat, v in zip(categorias, valores)]
     
     fig.add_trace(go.Bar(
         x=categorias,
@@ -139,8 +163,8 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
     valores = [percentual_crescimento_atual, percentual_crescimento_meta]
     cores = ["green", "aqua"]
 
-    texto_formatado = [lc.format_string('%.2f', v, grouping=True) + "%" for v in valores]
-    hover_texto = [f"{cat}: {lc.format_string('%.2f', v, grouping=True)}%" for cat, v in zip(categorias, valores)]
+    texto_formatado = [f"{v:.2f}%" for v in valores]
+    hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
 
     fig.add_trace(go.Bar(
         x=categorias,
@@ -195,7 +219,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
     })
 
     df_vendas["Dia"] = df_vendas["Data"].dt.day 
-    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: lc.currency(x, grouping=True))
+    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
     df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
     fig = go.Figure()
@@ -234,7 +258,7 @@ def create_evolution_chart(vendas_mensais, filial_selecionada):
 
     fig = go.Figure()
 
-    df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: lc.currency(y, grouping=True))
+    df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
 
     fig.add_trace(go.Scatter(
         x=df_vendas["Mês"].dt.strftime('%m/%Y'),
@@ -295,7 +319,7 @@ def create_filial_map(filial_selecionada):
         lambda f: max(float(consultaSQL.obter_acumulo_de_vendas(f) or 0), 1)
     )
     dados_vendas["vendas_formatado"] = dados_vendas["vendas"].apply(
-        lambda v: f"R$ {lc.format_string('%.2f', v, grouping=True)}"
+        lambda v: format_currency(v)
     )
 
     fig_mapa = px.scatter_mapbox(
@@ -321,7 +345,7 @@ def create_filial_map(filial_selecionada):
         coloraxis_colorbar=dict(
             title="Vendas (R$)",
             tickvals=np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5),
-            ticktext=[f"R$ {lc.format_string('%.2f', v, grouping=True)}" 
+            ticktext=[format_currency(v, symbol='') 
                      for v in np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5)]
         )
     )
@@ -440,7 +464,7 @@ def display_previous_months(filial_selecionada):
         categorias = ["Vendas ano anterior", "Meta do mês", f"Vendas de {mes_selecionado}"]
         valores = [vendas_ano, meta_mes, vendas_mes_atual]
         cores = ["darkgray", "darkblue", "darkred"]
-        textos_formatados = [f'R$ {lc.currency(v, grouping=True, symbol=False)}' for v in valores]
+        textos_formatados = [format_currency(v) for v in valores]
 
         fig = go.Figure()
 
@@ -489,8 +513,8 @@ def display_previous_months(filial_selecionada):
         valores = [percentual_crescimento, percentual_crescimento_meta]
         cores = ["green", "aqua"]
         
-        texto_formatado = [lc.format_string('%.2f', v, grouping=True) + "%" for v in valores]
-        hover_texto = [f"{cat}: {lc.format_string('%.2f', v, grouping=True)}%" for cat, v in zip(categorias, valores)]
+        texto_formatado = [f"{v:.2f}%" for v in valores]
+        hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
 
         fig.add_trace(go.Bar(
             x=categorias,
@@ -544,7 +568,7 @@ def display_previous_months(filial_selecionada):
         })
 
         df_vendas["Dia"] = df_vendas["Data"].dt.day 
-        df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: lc.currency(x, grouping=True))
+        df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
         df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
         fig = go.Figure()
@@ -583,7 +607,7 @@ def display_previous_months(filial_selecionada):
 
         fig = go.Figure()
 
-        df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: lc.currency(y, grouping=True))
+        df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
 
         fig.add_trace(go.Scatter(
             x=df_vendas["Mês"].dt.strftime('%m/%Y'),
@@ -686,15 +710,15 @@ def paginaatos():
         col1, col2, col3 = st.columns(3)
         with col1:
             st.write(f"""#### Vendas 2024: \n 
-                    R$ {lc.currency(data['total_vendas'], grouping=True, symbol=False)}
+                    {format_currency(data['total_vendas'])}
                     """)
         with col2:
             st.write(f"""#### Acumulado 2024: \n
-                    R$ {lc.currency(data['acumulo_vendas_ano_anterior'], grouping=True, symbol=False)}
+                    {format_currency(data['acumulo_vendas_ano_anterior'])}
                     """)
         with col3:
             st.write(f"""#### Vendas do dia: ({data['data_venda_dia'].strftime('%d/%m/%Y') if data['data_venda_dia'] else 'Sem data'})\n
-                    R$ {lc.currency(data['vendas_dia_anterior'], grouping=True, symbol=False)} """)
+                    {format_currency(data['vendas_dia_anterior'])} """)
 
         # Gráficos principais
         st.plotly_chart(
@@ -742,10 +766,6 @@ def paginaatos():
         st.session_state.authenticated = False
         st.session_state.page = None
         st.rerun()
-
-
-# Additional helper functions would be defined here following the same pattern
-# (create_growth_chart, create_line_chart, create_evolution_chart, create_filial_map, etc.)
 
 def paginaunit():
     """Página principal do dashboard Unit - Adapted for Streamlit Cloud"""
