@@ -1,4 +1,4 @@
-# Conexão com o banco
+#Conxão com o banco
 import calendar
 from datetime import datetime
 from matplotlib.dates import relativedelta
@@ -266,6 +266,7 @@ def obter_acumulo_meta_ano_anterior(filial):
         return None
     finally:
         conn.close()
+
 
 def obter_acumulo_de_vendas(filial):
     """Obtém o acúmulo de vendas do mês atual para uma filial específica.
@@ -616,7 +617,7 @@ def obter_vendas_anual_e_filial(filial_selecionada):
         return {}
     finally:
         conn.close()
-
+    
 def obter_vendas_ano_anterior_mes_anterior(filial, mes, ano):
     """Executa a consulta para obter o total de vendas do mesmo período do ano anterior para a filial especificada."""
     conn = obter_conexao()
@@ -678,7 +679,8 @@ def obter_meta_mes_anterior(filial, mes, ano):
         return None
     finally:
         conn.close()
-
+        
+        
 def obter_vendas_mes_anterior(filial, mes, ano):
     """Executa a consulta para obter o total de vendas do mês e ano especificados para a filial."""
     conn = obter_conexao()
@@ -710,7 +712,8 @@ def obter_vendas_mes_anterior(filial, mes, ano):
     finally:
         conn.close()
 
-def obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada, ano_selecionado):
+
+def obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
     nomes_para_numeros = {
         "Janeiro": "01", "Fevereiro": "02", "Março": "03", "Abril": "04",
         "Maio": "05", "Junho": "06", "Julho": "07", "Agosto": "08",
@@ -762,7 +765,7 @@ def obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada, ano_seleci
         return []
     finally:
         conn.close()
-
+        
 def obter_anos_disponiveis():
     """Retorna uma lista de anos distintos presentes no banco de dados, ordenados em ordem crescente."""
     conn = obter_conexao()
@@ -777,5 +780,125 @@ def obter_anos_disponiveis():
     except pyodbc.Error as e:
         print(f"Erro ao executar a consulta: {e}")
         return []
+    finally:
+        conn.close()
+        
+def obter_vendas_anual_e_filial_mes_anterior(filial_selecionada, mes=None, ano=None):
+    """
+    Retorna um dicionário com o total de vendas dos últimos 12 meses para uma filial específica,
+    com base no mês e ano fornecidos. Se não forem informados, considera o mês atual.
+    """
+    conn = obter_conexao()
+    if conn is None:
+        return {}
+
+    try:
+        cursor = conn.cursor()
+
+        # Se mês e ano não forem informados, usa o mês atual
+        if mes is None or ano is None:
+            hoje = datetime.today().replace(day=1)
+        else:
+            hoje = datetime(year=ano, month=mes, day=1)
+
+        # Gera os últimos 12 meses a partir da data de referência
+        meses = []
+        for i in range(12):
+            mes_ref = hoje - relativedelta(months=i)
+            meses.append((mes_ref.year, mes_ref.month))
+
+        vendas_por_mes = {}
+
+        for ano_item, mes_item in meses:
+            ultimo_dia = calendar.monthrange(ano_item, mes_item)[1]
+            data_inicio = f"{ano_item}-{mes_item:02d}-01"
+            data_fim = f"{ano_item}-{mes_item:02d}-{ultimo_dia}"
+
+            consulta = '''
+                SELECT SUM(vlVenda) as total
+                FROM tbVendasDashboard
+                WHERE dtVenda BETWEEN ? AND ?
+                  AND nmFilial = ?
+            '''
+            cursor.execute(consulta, (data_inicio, data_fim, filial_selecionada))
+            resultado = cursor.fetchone()
+            chave = f"{mes_item:02d}/{ano_item}"
+            vendas_por_mes[chave] = resultado.total if resultado and resultado.total else 0
+
+        # Ordena por data crescente (do mais antigo para o mais recente)
+        vendas_ordenadas = dict(sorted(vendas_por_mes.items(), key=lambda x: datetime.strptime(x[0], "%m/%Y")))
+
+        return vendas_ordenadas
+
+    except pyodbc.Error as e:
+        print(f"Erro ao consultar o banco de dados: {e}")
+        return {}
+    finally:
+        conn.close()
+
+
+
+        
+def obter_percentual_crescimento_meta_mes_anterior(filial):
+    """Obtém o percentual de diferença entre as vendas do mês atual e a meta (vendas do mesmo período do ano passado +5%)."""
+    conn = obter_conexao()
+    if conn is None:
+        return None
+
+    try:
+        cursor = conn.cursor()
+        consulta = '''
+        WITH VendasAnoAnterior AS (
+            SELECT 
+                SUM(vlVenda) * 1.05 AS acumulo_meta_ano_anterior
+            FROM dbo.tbVendasDashboard
+            WHERE 
+                YEAR(dtVenda) = YEAR(DATEADD(YEAR, -1, GETDATE()))  
+                AND MONTH(dtVenda) = 
+                    CASE 
+                        WHEN DAY(GETDATE()) = 1 THEN MONTH(DATEADD(MONTH, -1, GETDATE()))
+                        ELSE MONTH(GETDATE())
+                    END
+                AND DAY(dtVenda) BETWEEN 1 AND DAY(DATEADD(DAY, -1, GETDATE()))  
+                AND nmFilial = ?
+        ),
+        VendasAnoAtual AS (
+            SELECT 
+                SUM(vlVenda) AS total_ano_atual  
+            FROM tbVendasDashboard
+            WHERE 
+                YEAR(dtVenda) = 
+                    CASE 
+                        WHEN DAY(GETDATE()) = 1 THEN YEAR(DATEADD(MONTH, -1, GETDATE()))
+                        ELSE YEAR(GETDATE())
+                    END
+                AND MONTH(dtVenda) = 
+                    CASE 
+                        WHEN DAY(GETDATE()) = 1 THEN MONTH(DATEADD(MONTH, -1, GETDATE()))
+                        ELSE MONTH(GETDATE())
+                    END
+                AND DAY(dtVenda) BETWEEN 1 AND DAY(DATEADD(DAY, -1, GETDATE()))
+                AND nmFilial = ?
+        )
+        SELECT 
+            CAST(
+                ROUND(
+                    ((total_ano_atual / acumulo_meta_ano_anterior) - 1) * 100, 
+                    2
+                ) AS DECIMAL(10,2)
+            ) AS percentual_diferenca
+        FROM VendasAnoAtual, VendasAnoAnterior;
+        '''
+        cursor.execute(consulta, (filial, filial))
+        resultado = cursor.fetchone()
+
+        if resultado and resultado[0] is not None:
+            return resultado[0]
+        else:
+            return 0.0
+
+    except pyodbc.Error as e:
+        print(f"Erro: {e}")
+        return None
     finally:
         conn.close()
