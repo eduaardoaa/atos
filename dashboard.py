@@ -13,20 +13,40 @@ import base64
 # Local imports
 import consultaSQL
 
-# Configuração do locale para formatação em Português Brasileiro com fallbacks robustos
-try:
-    lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')  # Padrão para Linux/Cloud
-except lc.Error:
-    try:
-        lc.setlocale(lc.LC_ALL, 'Portuguese_Brazil.1252')  # Windows
-    except lc.Error:
+# Configuração do locale com tratamento mais robusto
+def configure_locale():
+    locales_to_try = [
+        'pt_BR.UTF-8',        # Linux/Cloud padrão
+        'Portuguese_Brazil.1252',  # Windows
+        'pt_BR',              # Fallback genérico
+        'pt_PT.UTF-8',        # Alternativa portuguesa
+        'en_US.UTF-8',        # Inglês como último recurso
+        ''                    # Locale padrão do sistema
+    ]
+    
+    for loc in locales_to_try:
         try:
-            lc.setlocale(lc.LC_ALL, 'pt_BR')  # Fallback genérico
+            lc.setlocale(lc.LC_ALL, loc)
+            st.session_state['locale_configured'] = loc
+            break
         except lc.Error:
-            # Fallback final se nenhum locale funcionar
-            lc.setlocale(lc.LC_ALL, 'C')
+            continue
+    else:
+        st.warning("Não foi possível configurar o locale específico. Usando configuração padrão do sistema.")
+        lc.setlocale(lc.LC_ALL, '')
 
-# Função para carregar imagens em base64
+configure_locale()
+
+# Função alternativa para formatação de moeda que não depende do locale
+def format_currency(value, symbol='R$ '):
+    """Formata valores monetários sem depender do locale"""
+    try:
+        value = float(value)
+        return f"{symbol}{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (ValueError, TypeError):
+        return f"{symbol}0,00"
+
+# Função para carregar imagens em base64 (melhor para Streamlit Cloud)
 @st.cache_data
 def load_image_base64(path):
     try:
@@ -34,7 +54,7 @@ def load_image_base64(path):
             encoded_string = base64.b64encode(image_file.read()).decode()
         return f"data:image/png;base64,{encoded_string}"
     except FileNotFoundError:
-        st.error("Imagem não encontrada")
+        st.error(f"Imagem não encontrada: {path}")
         return None
 
 def verificar_autenticacao():
@@ -93,11 +113,10 @@ def create_bar_chart(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_v
     valores = [meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas]
     cores = ["darkgray", "darkblue", "darkred", "white"]
 
-    texto_formatado = [f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for v in valores]
-    hover_texto = [f"{cat}<br>R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") 
-                  for cat, v in zip(categorias, valores)]
-    
     fig = go.Figure()
+    
+    texto_formatado = [format_currency(v) for v in valores]
+    hover_texto = [f"{cat}<br>{format_currency(v)}" for cat, v in zip(categorias, valores)]
     
     fig.add_trace(go.Bar(
         x=categorias,
@@ -181,10 +200,24 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
 @st.cache_data
 def create_line_chart(mes_referencia, filial_selecionada):
     """Cria gráfico de linhas com caching"""
-    # Garante que o mês está no formato correto (nome em português)
-    mes_nome = mes_referencia[0].capitalize() if isinstance(mes_referencia, list) else mes_referencia.capitalize()
+    # Dicionário de mapeamento de nomes de meses para números
+    nomes_para_numeros = {
+        'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
+        'Maio': 5, 'Junho': 6, 'Julho': 7, 'Agosto': 8,
+        'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
+    }
     
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_nome, filial_selecionada)
+    # Verifica se o mês está no dicionário
+    mes_nome = mes_referencia[0]
+    if mes_nome not in nomes_para_numeros:
+        st.error(f"Mês inválido: {mes_nome}")
+        return go.Figure()
+
+    try:
+        vendas = consultaSQL.obter_vendas_por_mes_e_filial(nomes_para_numeros[mes_nome], filial_selecionada)
+    except Exception as e:
+        st.error(f"Erro ao obter vendas: {str(e)}")
+        return go.Figure()
 
     if not vendas:
         st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -203,7 +236,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
     })
 
     df_vendas["Dia"] = df_vendas["Data"].dt.day 
-    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
     df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
     fig = go.Figure()
@@ -221,7 +254,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
         ))
 
     fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+        title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
         xaxis_title="Dia do Mês",
         yaxis_title="Vendas (R$)",
         template="plotly_white",
@@ -242,7 +275,7 @@ def create_evolution_chart(vendas_mensais, filial_selecionada):
 
     fig = go.Figure()
 
-    df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: f"R$ {y:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
 
     fig.add_trace(go.Scatter(
         x=df_vendas["Mês"].dt.strftime('%m/%Y'),
@@ -303,7 +336,7 @@ def create_filial_map(filial_selecionada):
         lambda f: max(float(consultaSQL.obter_acumulo_de_vendas(f) or 0), 1)
     )
     dados_vendas["vendas_formatado"] = dados_vendas["vendas"].apply(
-        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        lambda v: format_currency(v)
     )
 
     fig_mapa = px.scatter_mapbox(
@@ -329,7 +362,7 @@ def create_filial_map(filial_selecionada):
         coloraxis_colorbar=dict(
             title="Vendas (R$)",
             tickvals=np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5),
-            ticktext=[f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") 
+            ticktext=[format_currency(v, symbol='') 
                      for v in np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5)]
         )
     )
@@ -359,9 +392,9 @@ def display_previous_months(filial_selecionada):
 
     anos_disponiveis = consultaSQL.obter_anos_disponiveis()
     ano_selecionado = st.sidebar.selectbox("Selecione o ano de referência", anos_disponiveis, 
-                                          index=len(anos_disponiveis) - 1 if anos_disponiveis else 0)
+                                          index=len(anos_disponiveis) - 1)
 
-    if anos_disponiveis and dia_hoje == 1 and mes_atual == 1 and ano_atual in anos_disponiveis:
+    if dia_hoje == 1 and mes_atual == 1:
         anos_disponiveis.remove(ano_atual)
 
     if ano_selecionado == ano_atual:
@@ -399,7 +432,8 @@ def display_previous_months(filial_selecionada):
         mes_final = indice_mes_referencia
         ano_final = ano_selecionado
 
-    mes_selecionado = mes_referencia  # Já é o nome do mês em português
+    mes_referencia = [mes_referencia]
+    mes_selecionado = mes_referencia[0]
 
     # Header section
     logo = load_image_base64('logoatos.png')
@@ -447,7 +481,7 @@ def display_previous_months(filial_selecionada):
         categorias = ["Vendas ano anterior", "Meta do mês", f"Vendas de {mes_selecionado}"]
         valores = [vendas_ano, meta_mes, vendas_mes_atual]
         cores = ["darkgray", "darkblue", "darkred"]
-        textos_formatados = [f'R$ {v:,.2f}'.replace(",", "X").replace(".", ",").replace("X", ".") for v in valores]
+        textos_formatados = [format_currency(v) for v in valores]
 
         fig = go.Figure()
 
@@ -531,9 +565,30 @@ def display_previous_months(filial_selecionada):
         return fig
 
     @st.cache_data
-    def create_line_chart_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado):
-        """Versão modificada para meses anteriores"""
-        vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado)
+    def create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
+        """Cria gráfico de linhas para meses anteriores com caching"""
+        # Dicionário de mapeamento de nomes de meses para números
+        nomes_para_numeros = {
+            'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
+            'Maio': 5, 'Junho': 6, 'Julho': 7, 'Agosto': 8,
+            'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
+        }
+        
+        # Verifica se o mês está no dicionário
+        mes_nome = mes_referencia[0]
+        if mes_nome not in nomes_para_numeros:
+            st.error(f"Mês inválido: {mes_nome}")
+            return go.Figure()
+
+        try:
+            vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(
+                nomes_para_numeros[mes_nome], 
+                filial_selecionada, 
+                ano_selecionado
+            )
+        except Exception as e:
+            st.error(f"Erro ao obter vendas: {str(e)}")
+            return go.Figure()
 
         if not vendas:
             st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -552,7 +607,7 @@ def display_previous_months(filial_selecionada):
         })
 
         df_vendas["Dia"] = df_vendas["Data"].dt.day 
-        df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
         df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
         fig = go.Figure()
@@ -570,7 +625,7 @@ def display_previous_months(filial_selecionada):
             ))
 
         fig.update_layout(
-            title=f"📈 Vendas comparadas {mes_selecionado} - {filial_selecionada}",
+            title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
             xaxis_title="Dia do Mês",
             yaxis_title="Vendas (R$)",
             template="plotly_white",
@@ -591,7 +646,7 @@ def display_previous_months(filial_selecionada):
 
         fig = go.Figure()
 
-        df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: f"R$ {y:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
 
         fig.add_trace(go.Scatter(
             x=df_vendas["Mês"].dt.strftime('%m/%Y'),
@@ -633,7 +688,7 @@ def display_previous_months(filial_selecionada):
     )
 
     st.plotly_chart(
-        create_line_chart_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado),
+        create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado),
         use_container_width=True
     )
 
@@ -679,7 +734,7 @@ def paginaatos():
 
     if st.session_state['pagina'] == 'principal':
         # Página principal
-        mes_referencia = datetime.now().strftime('%B').capitalize()  # Retorna o nome do mês em português se o locale estiver configurado
+        mes_referencia = [datetime.now().strftime('%B').capitalize()]
 
         # Header section
         logo = load_image_base64('logoatos.png')
@@ -694,16 +749,15 @@ def paginaatos():
         col1, col2, col3 = st.columns(3)
         with col1:
             st.write(f"""#### Vendas 2024: \n 
-                    R$ {data['total_vendas']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    {format_currency(data['total_vendas'])}
                     """)
         with col2:
             st.write(f"""#### Acumulado 2024: \n
-                    R$ {data['acumulo_vendas_ano_anterior']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    {format_currency(data['acumulo_vendas_ano_anterior'])}
                     """)
         with col3:
-            data_formatada = data['data_venda_dia'].strftime('%d/%m/%Y') if data['data_venda_dia'] else 'Sem data'
-            st.write(f"""#### Vendas do dia: ({data_formatada})\n
-                    R$ {data['vendas_dia_anterior']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") """)
+            st.write(f"""#### Vendas do dia: ({data['data_venda_dia'].strftime('%d/%m/%Y') if data['data_venda_dia'] else 'Sem data'})\n
+                    {format_currency(data['vendas_dia_anterior'])} """)
 
         # Gráficos principais
         st.plotly_chart(
