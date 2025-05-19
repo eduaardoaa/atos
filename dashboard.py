@@ -10,6 +10,7 @@ from inspect import getmembers, isfunction
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
+# Set locale for Brazilian Portuguese formatting
 lc.setlocale(lc.LC_ALL, 'pt_BR')
 
 def verificar_autenticacao():
@@ -29,10 +30,8 @@ def pagina_nao_encontrada():
         st.session_state.page = None  
         st.switch_page("main.py")  
 
-# PÁGINA ATOS
-
-
 def paginaatos():
+    """Página principal do dashboard Atos Capital"""
     verificar_autenticacao()
 
     # Configuração da página
@@ -40,7 +39,6 @@ def paginaatos():
 
     # Barra lateral
     if 'user_info' in st.session_state:
-        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
@@ -50,10 +48,9 @@ def paginaatos():
     if 'pagina' not in st.session_state:
         st.session_state['pagina'] = 'principal'
 
-    # Mostra a página apropriada com base no estado
     if st.session_state['pagina'] == 'principal':
         def pagina_principal():
-            # Início sidebar
+            # Sidebar styling
             st.markdown(
                 """
                 <style>
@@ -75,15 +72,13 @@ def paginaatos():
 
             mes_referencia = [datetime.now().strftime('%B').capitalize()]
 
-            # Fim sidebar
-
-            # Início cabeçalho
+            # Header section
             left_co, cent_co, last_co = st.columns(3)
             with cent_co:
                 st.image('logoatos.png', width=500)
             st.write(f"# Relatório de venda da {filial_selecionada}")
-            # Fim cabeçalho
 
+            # Data fetching
             total_vendas = consultaSQL.obter_vendas_ano_anterior(filial_selecionada)
             meta_mes = consultaSQL.obter_meta_mes(filial_selecionada)
             previsao = consultaSQL.obter_previsao_vendas(filial_selecionada)
@@ -120,13 +115,13 @@ def paginaatos():
                 hover_texto = [f"{cat}<br>R$ {lc.currency(v, grouping=True, symbol=False)}" for cat, v in zip(categorias, valores)]
                 
                 fig.add_trace(go.Bar(
-                x=categorias,
-                y=valores,
-                marker_color=cores,
-                text=texto_formatado,
-                textposition='outside',
-                hovertext=hover_texto,
-                hoverinfo='text'
+                    x=categorias,
+                    y=valores,
+                    marker_color=cores,
+                    text=texto_formatado,
+                    textposition='outside',
+                    hovertext=hover_texto,
+                    hoverinfo='text'
                 ))
 
                 fig.update_layout(
@@ -197,7 +192,6 @@ def paginaatos():
                         zerolinecolor='gray'
                     )
                 )
-
                 return fig
 
             @st.cache_data
@@ -250,7 +244,6 @@ def paginaatos():
                         tickformat=",."
                     )
                 )
-
                 return fig
 
             def grafico_de_evolucao_vendas(vendas_mensais):
@@ -433,7 +426,6 @@ def paginaatos():
 
             if meses_disponiveis:
                 mes_referencia = st.sidebar.selectbox("Selecione o mês de referência", meses_disponiveis)
-                # Botão para voltar ao mês atual
                 if st.sidebar.button("Voltar para Mês Atual"):
                     st.session_state['pagina'] = 'principal'
                     st.rerun()
@@ -458,15 +450,14 @@ def paginaatos():
 
             mes_referencia = [mes_referencia]
             mes_selecionado = mes_referencia[0]
-            # Fim sidebar
 
-            # Início cabeçalho
+            # Header section
             left_co, cent_co, last_co = st.columns(3)
             with cent_co:
                 st.image('logoatos.png', width=500)
             st.write(f"# Relatório de venda da {filial_selecionada}")
-            # Fim cabeçalho
 
+            # Data fetching
             total_vendas = consultaSQL.obter_vendas_ano_anterior_mes_anterior(filial_selecionada, mes_final, ano_final - 1)
             meta_mes = consultaSQL.obter_meta_mes_anterior(filial_selecionada, mes_final, ano_final)
             vendas_mes_atual = consultaSQL.obter_vendas_mes_anterior(filial_selecionada, mes_final, ano_selecionado)
@@ -641,7 +632,6 @@ def paginaatos():
                         tickformat=",."
                     )
                 )
-
                 return fig
 
             def grafico_de_evolucao_vendas_mes_anterior(vendas_mensais, filial, ano):
@@ -698,17 +688,14 @@ def paginaatos():
 
         pagina_meses_anterior()
 
-    # Botão sair da conta (movido para depois das funções de página)
+    # Botão sair da conta
     if st.sidebar.button("🚪 Sair"):
         st.session_state.authenticated = False
         st.session_state.page = None
         st.rerun()
 
-
-
-# PÁGINA UNIT
-
 def paginaunit():
+    """Página principal do dashboard Unit"""
     verificar_autenticacao()
     
     # Configuração da página
@@ -720,7 +707,6 @@ def paginaunit():
         st.sidebar.write(f"👤 Nome: {st.session_state.user_info['nome']}")
         st.sidebar.write(f"🔑 Permissão: {st.session_state.user_info['permissao']}")
         
-        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
@@ -735,13 +721,12 @@ def paginaunit():
     # Nome Principal Pagina
     st.title("📊 TESTE")
     
-    # Mensagem boas vindas com nome cadastrado na conta
+    # Mensagem boas vindas
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
-# PÁGINA RESIDENCIA
-
 def paginaresidencia():
+    """Página principal do dashboard Residencia"""
     verificar_autenticacao()
     
     # Configuração da página
@@ -753,7 +738,6 @@ def paginaresidencia():
         st.sidebar.write(f"👤 Nome: {st.session_state.user_info['nome']}")
         st.sidebar.write(f"🔑 Permissão: {st.session_state.user_info['permissao']}")
         
-        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
@@ -768,13 +752,9 @@ def paginaresidencia():
     # Nome Principal Pagina
     st.title("📊 Residencia")
     
-    # Mensagem boas vindas com nome cadastrado na conta
+    # Mensagem boas vindas
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
-
-# PÁGINA NOVA ADICIONAR....
-
-# SISTEMA DINÂMICO DE ROTEAMENTO
 
 def encontrar_paginas():
     """Lista todas as funções pagina* disponíveis"""
@@ -782,6 +762,7 @@ def encontrar_paginas():
              if name.startswith('pagina') and isfunction(func)]
 
 def main():
+    """Função principal que roteia para a página apropriada"""
     # Pega o nome da página da session_state
     nome_pagina = st.session_state.get('dashboard_page', 'pagina_nao_encontrada')
     
