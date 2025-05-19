@@ -200,6 +200,22 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
 @st.cache_data
 def create_line_chart(mes_referencia, filial_selecionada):
     """Cria gráfico de linhas com caching"""
+    # Dicionário de mapeamento de nomes de meses em inglês para português
+    meses_ingles_para_portugues = {
+        'January': 'Janeiro',
+        'February': 'Fevereiro',
+        'March': 'Março',
+        'April': 'Abril',
+        'May': 'Maio',
+        'June': 'Junho',
+        'July': 'Julho',
+        'August': 'Agosto',
+        'September': 'Setembro',
+        'October': 'Outubro',
+        'November': 'Novembro',
+        'December': 'Dezembro'
+    }
+    
     # Dicionário de mapeamento de nomes de meses para números
     nomes_para_numeros = {
         'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
@@ -207,8 +223,12 @@ def create_line_chart(mes_referencia, filial_selecionada):
         'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
     }
     
-    # Verifica se o mês está no dicionário
+    # Converte o nome do mês de inglês para português se necessário
     mes_nome = mes_referencia[0]
+    if mes_nome in meses_ingles_para_portugues:
+        mes_nome = meses_ingles_para_portugues[mes_nome]
+    
+    # Verifica se o mês está no dicionário
     if mes_nome not in nomes_para_numeros:
         st.error(f"Mês inválido: {mes_nome}")
         return go.Figure()
@@ -254,7 +274,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
         ))
 
     fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
         xaxis_title="Dia do Mês",
         yaxis_title="Vendas (R$)",
         template="plotly_white",
@@ -734,7 +754,13 @@ def paginaatos():
 
     if st.session_state['pagina'] == 'principal':
         # Página principal
-        mes_referencia = [datetime.now().strftime('%B').capitalize()]
+        # Mapeamento de números para nomes de meses em português
+        meses_portugues = [
+            'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ]
+        mes_atual_num = datetime.now().month
+        mes_referencia = [meses_portugues[mes_atual_num - 1]]
 
         # Header section
         logo = load_image_base64('logoatos.png')
