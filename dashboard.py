@@ -200,41 +200,21 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
 @st.cache_data
 def create_line_chart(mes_referencia, filial_selecionada):
     """Cria gráfico de linhas com caching"""
-    # Dicionário de mapeamento de nomes de meses em inglês para português
-    meses_ingles_para_portugues = {
-        'January': 'Janeiro',
-        'February': 'Fevereiro',
-        'March': 'Março',
-        'April': 'Abril',
-        'May': 'Maio',
-        'June': 'Junho',
-        'July': 'Julho',
-        'August': 'Agosto',
-        'September': 'Setembro',
-        'October': 'Outubro',
-        'November': 'Novembro',
-        'December': 'Dezembro'
-    }
-    
-    # Dicionário de mapeamento de nomes de meses para números
-    nomes_para_numeros = {
+    # Dicionário de mapeamento de nomes de meses em português para números
+    meses_pt = {
         'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
         'Maio': 5, 'Junho': 6, 'Julho': 7, 'Agosto': 8,
         'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
     }
     
-    # Converte o nome do mês de inglês para português se necessário
-    mes_nome = mes_referencia[0]
-    if mes_nome in meses_ingles_para_portugues:
-        mes_nome = meses_ingles_para_portugues[mes_nome]
-    
     # Verifica se o mês está no dicionário
-    if mes_nome not in nomes_para_numeros:
+    mes_nome = mes_referencia[0]
+    if mes_nome not in meses_pt:
         st.error(f"Mês inválido: {mes_nome}")
         return go.Figure()
 
     try:
-        vendas = consultaSQL.obter_vendas_por_mes_e_filial(nomes_para_numeros[mes_nome], filial_selecionada)
+        vendas = consultaSQL.obter_vendas_por_mes_e_filial(meses_pt[mes_nome], filial_selecionada)
     except Exception as e:
         st.error(f"Erro ao obter vendas: {str(e)}")
         return go.Figure()
@@ -274,7 +254,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
         ))
 
     fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+        title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
         xaxis_title="Dia do Mês",
         yaxis_title="Vendas (R$)",
         template="plotly_white",
@@ -402,8 +382,10 @@ def display_previous_months(filial_selecionada):
     filiais = consultaSQL.obter_nmfilial()
     filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
 
-    meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    meses_pt = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ]
 
     hoje = datetime.today()
     dia_hoje = hoje.day
@@ -422,11 +404,11 @@ def display_previous_months(filial_selecionada):
             if mes_atual == 1:
                 meses_disponiveis = []
             else:
-                meses_disponiveis = meses[:mes_atual - 2]
+                meses_disponiveis = meses_pt[:mes_atual - 2]
         else:
-            meses_disponiveis = meses[:mes_atual - 1]
+            meses_disponiveis = meses_pt[:mes_atual - 1]
     else:
-        meses_disponiveis = meses
+        meses_disponiveis = meses_pt
 
     if meses_disponiveis:
         mes_referencia = st.sidebar.selectbox("Selecione o mês de referência", meses_disponiveis)
@@ -437,7 +419,7 @@ def display_previous_months(filial_selecionada):
         st.sidebar.warning("Nenhum mês disponível para seleção com base na data atual.")
         mes_referencia = None
           
-    indice_mes_referencia = meses.index(mes_referencia) + 1 if mes_referencia else None
+    indice_mes_referencia = meses_pt.index(mes_referencia) + 1 if mes_referencia else None
 
     if dia_hoje == 1 and indice_mes_referencia == mes_atual and ano_selecionado == ano_atual:
         data_ref = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
@@ -587,8 +569,8 @@ def display_previous_months(filial_selecionada):
     @st.cache_data
     def create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
         """Cria gráfico de linhas para meses anteriores com caching"""
-        # Dicionário de mapeamento de nomes de meses para números
-        nomes_para_numeros = {
+        # Dicionário de mapeamento de nomes de meses em português para números
+        meses_pt = {
             'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
             'Maio': 5, 'Junho': 6, 'Julho': 7, 'Agosto': 8,
             'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
@@ -596,13 +578,13 @@ def display_previous_months(filial_selecionada):
         
         # Verifica se o mês está no dicionário
         mes_nome = mes_referencia[0]
-        if mes_nome not in nomes_para_numeros:
+        if mes_nome not in meses_pt:
             st.error(f"Mês inválido: {mes_nome}")
             return go.Figure()
 
         try:
             vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(
-                nomes_para_numeros[mes_nome], 
+                meses_pt[mes_nome], 
                 filial_selecionada, 
                 ano_selecionado
             )
@@ -754,13 +736,11 @@ def paginaatos():
 
     if st.session_state['pagina'] == 'principal':
         # Página principal
-        # Mapeamento de números para nomes de meses em português
-        meses_portugues = [
+        meses_pt = [
             'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
         ]
-        mes_atual_num = datetime.now().month
-        mes_referencia = [meses_portugues[mes_atual_num - 1]]
+        mes_referencia = [meses_pt[datetime.now().month - 1]]
 
         # Header section
         logo = load_image_base64('logoatos.png')
