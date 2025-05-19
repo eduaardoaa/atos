@@ -199,7 +199,13 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
 @st.cache_data
 def create_line_chart(mes_referencia, filial_selecionada):
     """Cria gráfico de linhas com caching"""
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
+    # Garantir que mes_referencia seja uma lista e pegar o primeiro elemento
+    mes_nome = mes_referencia[0] if isinstance(mes_referencia, list) else mes_referencia
+    
+    # Converter para o formato esperado (primeira letra maiúscula)
+    mes_nome = mes_nome.capitalize()
+    
+    vendas = consultaSQL.obter_vendas_por_mes_e_filial([mes_nome], filial_selecionada)
 
     if not vendas:
         st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -236,7 +242,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
         ))
 
     fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
         xaxis_title="Dia do Mês",
         yaxis_title="Vendas (R$)",
         template="plotly_white",
@@ -548,7 +554,14 @@ def display_previous_months(filial_selecionada):
 
     @st.cache_data
     def create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
-        vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado)
+        """Cria gráfico de linhas para meses anteriores com caching"""
+        # Garantir que mes_referencia seja uma lista e pegar o primeiro elemento
+        mes_nome = mes_referencia[0] if isinstance(mes_referencia, list) else mes_referencia
+        
+        # Converter para o formato esperado (primeira letra maiúscula)
+        mes_nome = mes_nome.capitalize()
+        
+        vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior([mes_nome], filial_selecionada, ano_selecionado)
 
         if not vendas:
             st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -585,7 +598,7 @@ def display_previous_months(filial_selecionada):
             ))
 
         fig.update_layout(
-            title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+            title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
             xaxis_title="Dia do Mês",
             yaxis_title="Vendas (R$)",
             template="plotly_white",
