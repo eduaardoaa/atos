@@ -337,7 +337,7 @@ def paginaatos():
                         """)
             with col2:
                 st.write(f"""#### Acumulado 2024: \n
-                        R$ {lc.currency(acumulo_vendas_ano_anterior, grouping=True, symbol=False)}
+                        f"R$ {locale.format_string('%.2f', acumulo_vendas_ano_anterior, grouping=True)}"
                         """)
             with col3:
                 st.write(f"""#### Vendas do dia: ({data_venda_dia.strftime('%d/%m/%Y') if data_venda_dia else 'Sem data'})\n
