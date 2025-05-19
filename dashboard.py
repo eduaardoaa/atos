@@ -26,7 +26,7 @@ except lc.Error:
             # Fallback final se nenhum locale funcionar
             lc.setlocale(lc.LC_ALL, 'C')
 
-# Função para carregar imagens em base64 (melhor para Streamlit Cloud)
+# Função para carregar imagens em base64
 @st.cache_data
 def load_image_base64(path):
     try:
@@ -93,11 +93,11 @@ def create_bar_chart(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_v
     valores = [meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas]
     cores = ["darkgray", "darkblue", "darkred", "white"]
 
-    fig = go.Figure()
-    
     texto_formatado = [f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for v in valores]
     hover_texto = [f"{cat}<br>R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") 
                   for cat, v in zip(categorias, valores)]
+    
+    fig = go.Figure()
     
     fig.add_trace(go.Bar(
         x=categorias,
@@ -181,7 +181,10 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
 @st.cache_data
 def create_line_chart(mes_referencia, filial_selecionada):
     """Cria gráfico de linhas com caching"""
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
+    # Garante que o mês está no formato correto (nome em português)
+    mes_nome = mes_referencia[0].capitalize() if isinstance(mes_referencia, list) else mes_referencia.capitalize()
+    
+    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_nome, filial_selecionada)
 
     if not vendas:
         st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -218,7 +221,7 @@ def create_line_chart(mes_referencia, filial_selecionada):
         ))
 
     fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
         xaxis_title="Dia do Mês",
         yaxis_title="Vendas (R$)",
         template="plotly_white",
@@ -396,8 +399,7 @@ def display_previous_months(filial_selecionada):
         mes_final = indice_mes_referencia
         ano_final = ano_selecionado
 
-    mes_referencia = [mes_referencia]
-    mes_selecionado = mes_referencia[0]
+    mes_selecionado = mes_referencia  # Já é o nome do mês em português
 
     # Header section
     logo = load_image_base64('logoatos.png')
@@ -529,8 +531,9 @@ def display_previous_months(filial_selecionada):
         return fig
 
     @st.cache_data
-    def create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
-        vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado)
+    def create_line_chart_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado):
+        """Versão modificada para meses anteriores"""
+        vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado)
 
         if not vendas:
             st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -567,7 +570,7 @@ def display_previous_months(filial_selecionada):
             ))
 
         fig.update_layout(
-            title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+            title=f"📈 Vendas comparadas {mes_selecionado} - {filial_selecionada}",
             xaxis_title="Dia do Mês",
             yaxis_title="Vendas (R$)",
             template="plotly_white",
@@ -630,7 +633,7 @@ def display_previous_months(filial_selecionada):
     )
 
     st.plotly_chart(
-        create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado),
+        create_line_chart_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado),
         use_container_width=True
     )
 
@@ -676,7 +679,7 @@ def paginaatos():
 
     if st.session_state['pagina'] == 'principal':
         # Página principal
-        mes_referencia = [datetime.now().strftime('%B').capitalize()]
+        mes_referencia = datetime.now().strftime('%B').capitalize()  # Retorna o nome do mês em português se o locale estiver configurado
 
         # Header section
         logo = load_image_base64('logoatos.png')
