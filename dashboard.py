@@ -200,7 +200,24 @@ def create_growth_chart(percentual_crescimento_atual, percentual_crescimento_met
 @st.cache_data
 def create_line_chart(mes_referencia, filial_selecionada):
     """Cria gráfico de linhas com caching"""
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
+    # Dicionário de mapeamento de nomes de meses para números
+    nomes_para_numeros = {
+        'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
+        'Maio': 5, 'Junho': 6, 'Julho': 7, 'Agosto': 8,
+        'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
+    }
+    
+    # Verifica se o mês está no dicionário
+    mes_nome = mes_referencia[0]
+    if mes_nome not in nomes_para_numeros:
+        st.error(f"Mês inválido: {mes_nome}")
+        return go.Figure()
+
+    try:
+        vendas = consultaSQL.obter_vendas_por_mes_e_filial(nomes_para_numeros[mes_nome], filial_selecionada)
+    except Exception as e:
+        st.error(f"Erro ao obter vendas: {str(e)}")
+        return go.Figure()
 
     if not vendas:
         st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -549,7 +566,29 @@ def display_previous_months(filial_selecionada):
 
     @st.cache_data
     def create_line_chart_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
-        vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado)
+        """Cria gráfico de linhas para meses anteriores com caching"""
+        # Dicionário de mapeamento de nomes de meses para números
+        nomes_para_numeros = {
+            'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4,
+            'Maio': 5, 'Junho': 6, 'Julho': 7, 'Agosto': 8,
+            'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12
+        }
+        
+        # Verifica se o mês está no dicionário
+        mes_nome = mes_referencia[0]
+        if mes_nome not in nomes_para_numeros:
+            st.error(f"Mês inválido: {mes_nome}")
+            return go.Figure()
+
+        try:
+            vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(
+                nomes_para_numeros[mes_nome], 
+                filial_selecionada, 
+                ano_selecionado
+            )
+        except Exception as e:
+            st.error(f"Erro ao obter vendas: {str(e)}")
+            return go.Figure()
 
         if not vendas:
             st.warning("Nenhuma venda encontrada para os filtros selecionados.")
