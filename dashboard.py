@@ -12,7 +12,11 @@ from datetime import datetime, timedelta
 import locale as lc
 import os
 
-lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')
+import locale as lc
+try:
+    lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')
+except lc.Error:
+    lc.setlocale(lc.LC_ALL, '') 
 
 
 def verificar_autenticacao():
