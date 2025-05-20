@@ -368,8 +368,10 @@ def create_filial_map(filial_selecionada):
     )
     return fig_mapa
 
-def display_previous_months(filial_selecionada):
-    """Exibe a página de meses anteriores"""
+def pagina_meses_anterior():
+    """Página de meses anteriores - Versão para Streamlit Cloud"""
+    verificar_autenticacao()
+    
     st.markdown("""
         <style>
         [data-testid="stSidebar"] {
@@ -699,6 +701,12 @@ def display_previous_months(filial_selecionada):
         use_container_width=True
     )
 
+    # Botão sair da conta
+    if st.sidebar.button("🚪 Sair"):
+        st.session_state.authenticated = False
+        st.session_state.page = None
+        st.rerun()
+
 def paginaatos():
     """Página principal do dashboard Atos Capital - Versão para Streamlit Cloud"""
     verificar_autenticacao()
@@ -804,7 +812,7 @@ def paginaatos():
         )
     else:
         # Página de meses anteriores
-        display_previous_months(filial_selecionada)
+        pagina_meses_anterior()
 
     # Botão sair da conta
     if st.sidebar.button("🚪 Sair"):
@@ -882,8 +890,11 @@ def main():
     # Get page name from session_state
     nome_pagina = st.session_state.get('dashboard_page', 'pagina_nao_encontrada')
     
+    # Verifica se está na página de meses anteriores
+    if st.session_state.get('pagina') == 'meses_anterior':
+        pagina_meses_anterior()
     # Check if function exists
-    if nome_pagina in globals() and callable(globals()[nome_pagina]):
+    elif nome_pagina in globals() and callable(globals()[nome_pagina]):
         globals()[nome_pagina]()
     else:
         pagina_nao_encontrada()
