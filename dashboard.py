@@ -246,9 +246,9 @@ def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
     if not mes_num:
         st.error(f"Mês não reconhecido: {mes_nome} (traduzido para: {mes_portugues})")
         return None
-    
-    # Restante do código permanece o mesmo...
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
+                
+                # Obter dados da consulta SQL
+                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
 
     if not vendas:
         st.warning("Nenhuma venda encontrada para os filtros selecionados.")
