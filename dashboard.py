@@ -89,15 +89,16 @@ def paginaatos():
                 st.session_state['pagina'] = 'meses_anterior'
                 st.rerun()
 
-            # Obter nome do mês atual em português
-            mes_atual = datetime.now().strftime('%B')
-            meses_pt = {
-                'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março',
-                'April': 'Abril', 'May': 'Maio', 'June': 'Junho',
-                'July': 'Julho', 'August': 'Agosto', 'September': 'Setembro',
-                'October': 'Outubro', 'November': 'Novembro', 'December': 'Dezembro'
-            }
-            mes_referencia = [meses_pt.get(mes_atual, mes_atual)]
+           # Dicionário de tradução de meses
+meses_em_portugues = {
+    "January": "Janeiro", "February": "Fevereiro", "March": "Março",
+    "April": "Abril", "May": "Maio", "June": "Junho",
+    "July": "Julho", "August": "Agosto", "September": "Setembro",
+    "October": "Outubro", "November": "Novembro", "December": "Dezembro"
+}
+
+mes_atual_en = datetime.now().strftime('%B')
+mes_referencia = [meses_em_portugues.get(mes_atual_en, mes_atual_en)]
 
             # Fim sidebar
 
