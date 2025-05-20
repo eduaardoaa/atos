@@ -13,18 +13,15 @@ from datetime import datetime, timedelta
 # Configuração da página DEVE SER A PRIMEIRA COISA
 st.set_page_config(page_title="Atos Capital", page_icon="📊", layout="wide")
 
-# Configuração do locale para português do Brasil com fallback seguro
+# Configuração do locale com fallback seguro
 try:
     lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')
 except lc.Error:
     try:
-        lc.setlocale(lc.LC_ALL, 'Portuguese_Brazil.1252')  # Para Windows
+        lc.setlocale(lc.LC_ALL, 'pt_BR')
     except lc.Error:
-        try:
-            lc.setlocale(lc.LC_ALL, 'pt_BR')  # Tentativa genérica
-        except lc.Error:
-            lc.setlocale(lc.LC_ALL, '')  # Usa o locale padrão do sistema
-            st.warning("Locale pt_BR não disponível. Usando configurações padrão do sistema.")
+        lc.setlocale(lc.LC_ALL, 'C')  # Fallback para locale padrão
+        st.warning("Locale pt_BR não disponível. Usando configurações padrão.")
 
 def verificar_autenticacao():
     """Verifica se o usuário está autenticado"""
@@ -89,16 +86,7 @@ def paginaatos():
                 st.session_state['pagina'] = 'meses_anterior'
                 st.rerun()
 
-           # Dicionário de tradução de meses
-meses_em_portugues = {
-    "January": "Janeiro", "February": "Fevereiro", "March": "Março",
-    "April": "Abril", "May": "Maio", "June": "Junho",
-    "July": "Julho", "August": "Agosto", "September": "Setembro",
-    "October": "Outubro", "November": "Novembro", "December": "Dezembro"
-}
-
-mes_atual_en = datetime.now().strftime('%B')
-mes_referencia = [meses_em_portugues.get(mes_atual_en, mes_atual_en)]
+            mes_referencia = [datetime.now().strftime('%B').capitalize()]
 
             # Fim sidebar
 
@@ -457,7 +445,7 @@ mes_referencia = [meses_em_portugues.get(mes_atual_en, mes_atual_en)]
             filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
 
             meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezember"]
 
             hoje = datetime.today()
             dia_hoje = hoje.day
