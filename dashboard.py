@@ -45,7 +45,7 @@ def format_currency(value):
         # Fallback para formatação manual se locale não funcionar
         return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# PÁGINA ATOS
+# PÁGINA ATOS - CÓDIGO CORRIGIDO
 def paginaatos():
     verificar_autenticacao()
 
@@ -86,7 +86,9 @@ def paginaatos():
                 st.session_state['pagina'] = 'meses_anterior'
                 st.rerun()
 
-            mes_referencia = [datetime.now().strftime('%B').capitalize()]
+            # Garantir que mes_referencia seja sempre uma lista com o mês atual
+            mes_atual = datetime.now().strftime('%B').capitalize()
+            mes_referencia = [mes_atual]
 
             # Fim sidebar
 
@@ -215,11 +217,35 @@ def paginaatos():
 
             @st.cache_data
             def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
+                # Garantir que mes_referencia seja uma lista
+                if not isinstance(mes_referencia, list):
+                    mes_referencia = [mes_referencia]
+                
+                # Extrair o nome do mês (primeiro elemento)
+                mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
+                
+                # Mapeamento de meses com tratamento de acentos
+                meses_map = {
+                    'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
+                    'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
+                    'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
+                    'Novembro': 11, 'Dezembro': 12
+                }
+                
+                # Normalizar nome do mês (remover acentos se necessário)
+                mes_nome_normalizado = mes_nome.replace('ç', 'c').replace('ê', 'e')
+                mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
+                
+                if not mes_num:
+                    st.error(f"Mês não reconhecido: {mes_nome}")
+                    return None
+                
+                # Obter dados da consulta SQL
+                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
 
                 if not vendas:
                     st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-                    return
+                    return None
 
                 valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
                 datas = [v[1] for v in vendas]
@@ -235,10 +261,9 @@ def paginaatos():
 
                 df_vendas["Dia"] = df_vendas["Data"].dt.day 
                 df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
+                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
                 fig = go.Figure()
-
-                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
                 for mesano in df_vendas["MesAno"].unique():
                     df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
@@ -253,7 +278,7 @@ def paginaatos():
                     ))
 
                 fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+                    title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
                     xaxis_title="Dia do Mês",
                     yaxis_title="Vendas (R$)",
                     template="plotly_white",
@@ -323,11 +348,7 @@ def paginaatos():
             }
             
             dados_vendas = pd.DataFrame({
-                'filial': ['FILIAL BELÉM', 'FILIAL BELO HORIZONTE', 'FILIAL BRASÍLIA', 'FILIAL CAMPINAS', 
-                          'FILIAL CURITIBA', 'FILIAL DUQUE DE CAXIAS', 'FILIAL FORTALEZA', 'FILIAL GOIÂNIA', 
-                          'FILIAL GUARULHOS', 'FILIAL MACEIÓ', 'FILIAL MANAUS', 'FILIAL RECIFE', 
-                          'FILIAL RIO DE JANEIRO', 'FILIAL SALVADOR', 'FILIAL SÃO GONÇALO', 
-                          'FILIAL SÃO LUÍS', 'FILIAL SÃO PAULO']
+                'filial': list(coordenadas_filiais.keys())
             })
             
             dados_vendas['latitude'] = dados_vendas['filial'].map(lambda x: coordenadas_filiais[x]['latitude'])
@@ -357,10 +378,11 @@ def paginaatos():
             st.sidebar.plotly_chart(exibindo_grafico_de_crescimento)
 
             exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial(mes_referencia, filial_selecionada)
-            st.write(exibindo_grafico_de_linhas_vendas_por_mes)
+            if exibindo_grafico_de_linhas_vendas_por_mes:
+                st.plotly_chart(exibindo_grafico_de_linhas_vendas_por_mes)
 
             exibindo_grafico_acompanhamanto_anual = grafico_de_evolucao_vendas(vendas_mensais)
-            st.write(exibindo_grafico_acompanhamanto_anual)
+            st.plotly_chart(exibindo_grafico_acompanhamanto_anual)
 
             # Simula valores de vendas para cada filial
             dados_vendas["vendas"] = dados_vendas["filial"].apply(
@@ -403,396 +425,66 @@ def paginaatos():
             st.plotly_chart(fig_mapa, use_container_width=True)
 
         pagina_principal()
-    else:
-        def pagina_meses_anterior():
-            st.markdown(
-                """
-                <style>
-                [data-testid="stSidebar"] {
-                    background-color: #800000; 
-                }
-                </style>
-                """,
-                unsafe_allow_html=True,
-            )
 
-            st.sidebar.header("Filtros")
-            filiais = consultaSQL.obter_nmfilial()
-            filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
-
-            meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-
-            hoje = datetime.today()
-            dia_hoje = hoje.day
-            mes_atual = hoje.month
-            ano_atual = hoje.year
-
-            anos_disponiveis = consultaSQL.obter_anos_disponiveis()
-            ano_selecionado = st.sidebar.selectbox("Selecione o ano de referência", anos_disponiveis, index=len(anos_disponiveis) - 1)
-
-            if dia_hoje == 1 and mes_atual == 1:
-                anos_disponiveis.remove(ano_atual)
-
-            if ano_selecionado == ano_atual:
-                if dia_hoje == 1:
-                    if mes_atual == 1:
-                        meses_disponiveis = []
-                    else:
-                        meses_disponiveis = meses[:mes_atual - 2]
-                else:
-                    meses_disponiveis = meses[:mes_atual - 1]
-            else:
-                meses_disponiveis = meses
-
-            if meses_disponiveis:
-                mes_referencia = st.sidebar.selectbox("Selecione o mês de referência", meses_disponiveis)
-                # Botão para voltar ao mês atual
-                if st.sidebar.button("Voltar para Mês Atual"):
-                    st.session_state['pagina'] = 'principal'
-                    st.rerun()
-            else:
-                st.sidebar.warning("Nenhum mês disponível para seleção com base na data atual.")
-                mes_referencia = None
-                  
-            indice_mes_referencia = meses.index(mes_referencia) + 1
-
-            if dia_hoje == 1 and indice_mes_referencia == mes_atual and ano_selecionado == ano_atual:
-                data_ref = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
-                data_ref = (data_ref - timedelta(days=1)).replace(day=1)
-                mes_final = data_ref.month
-                ano_final = data_ref.year 
-            elif dia_hoje != 1 and indice_mes_referencia == mes_atual and ano_selecionado == ano_atual:
-                data_ref = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
-                mes_final = data_ref.month
-                ano_final = data_ref.year
-            else:
-                mes_final = indice_mes_referencia
-                ano_final = ano_selecionado
-
-            mes_referencia = [mes_referencia]
-            mes_selecionado = mes_referencia[0]
-            # Fim sidebar
-
-            # Início cabeçalho
-            left_co, cent_co, last_co = st.columns(3)
-            with cent_co:
-                st.image('logoatos.png', width=500)
-            st.write(f"# Relatório de venda da {filial_selecionada}")
-            # Fim cabeçalho
-
-            total_vendas = consultaSQL.obter_vendas_ano_anterior_mes_anterior(filial_selecionada, mes_final, ano_final - 1)
-            meta_mes = consultaSQL.obter_meta_mes_anterior(filial_selecionada, mes_final, ano_final)
-            vendas_mes_atual = consultaSQL.obter_vendas_mes_anterior(filial_selecionada, mes_final, ano_selecionado)
-            percentual_crescimento_meta = consultaSQL.obter_percentual_crescimento_meta_mes_anterior(filial_selecionada)
-            vendas_mensais = consultaSQL.obter_vendas_anual_e_filial_mes_anterior(filial_selecionada, mes=mes_final, ano=ano_final)
-
-            def calcular_percentual_crescimento(vendas_mes_atual, total_vendas):
-                if total_vendas and total_vendas > 0:
-                    percentual = ((vendas_mes_atual / total_vendas) - Decimal("1")) * Decimal("100")
-                    return percentual.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                else:
-                    return Decimal("0.00")
-            percentual_crescimento = calcular_percentual_crescimento(vendas_mes_atual, total_vendas)
-
-            def calcular_percentual_crescimento_meta(vendas_mes_atual, meta_mes):
-                if meta_mes and meta_mes > 0:
-                    percentual = ((vendas_mes_atual / meta_mes) - Decimal("1")) * Decimal("100")
-                    return percentual.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                else:
-                    return Decimal("0.00")
-            percentual_crescimento_meta = calcular_percentual_crescimento_meta(vendas_mes_atual, meta_mes)
-
-            @st.cache_data
-            def grafico_de_barras_mes_anterior(meta_mes, vendas_ano, vendas_mes_atual):
-                def safe_float(value):
-                    if value is None:
-                        return 0.0
-                    try:
-                        return float(value)
-                    except (ValueError, TypeError):
-                        return 0.0
-
-                meta_mes = safe_float(meta_mes)
-                vendas_ano = safe_float(vendas_ano)
-                vendas_mes_atual = safe_float(vendas_mes_atual)
-
-                categorias = ["Vendas ano anterior", "Meta do mês", f"Vendas de {mes_selecionado}"]
-                valores = [vendas_ano, meta_mes, vendas_mes_atual]
-                cores = ["darkgray", "darkblue", "darkred"]
-                textos_formatados = [f'R$ {format_currency(v)}' for v in valores]
-
-                fig = go.Figure()
-
-                fig.add_trace(go.Bar(
-                    x=categorias,
-                    y=valores,
-                    marker_color=cores,
-                    text=textos_formatados,
-                    textposition='outside',
-                    hovertemplate=[
-                        f'{cat}, {txt}<extra></extra>' for cat, txt in zip(categorias, textos_formatados)
-                    ]
-                ))
-
-                fig.update_layout(
-                    title=f"📊 Mês: {mes_selecionado}",
-                    xaxis_title="",
-                    yaxis_title="Valor (R$)",
-                    font=dict(color="white", size=14),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    height=550,
-                    width=500,
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True,
-                        tickformat=",."
-                    )
-                )
-                return fig
-
-            @st.cache_data 
-            def grafico_de_crescimento_mes(vendas_mes_atual, total_vendas, meta_mes):
-                try:
-                    percentual_crescimento = float(calcular_percentual_crescimento(vendas_mes_atual, total_vendas))
-                except (ValueError, TypeError):
-                    percentual_crescimento = 0.0
-
-                try:
-                    percentual_crescimento_meta = float(calcular_percentual_crescimento_meta(vendas_mes_atual, meta_mes))
-                except (ValueError, TypeError):
-                    percentual_crescimento_meta = 0.0
-                    
-                fig = go.Figure()
-
-                categorias = ["Cresc. Mês", "Cresc. meta"]
-                valores = [percentual_crescimento, percentual_crescimento_meta]
-                cores = ["green", "aqua"]
-                
-                texto_formatado = [f"{v:.2f}%" for v in valores]
-                hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
-
-                fig.add_trace(go.Bar(
-                    x=categorias,
-                    y=valores,
-                    marker_color=cores,
-                    text=texto_formatado,
-                    textposition='outside',
-                    hovertext=hover_texto,
-                    hoverinfo='text'
-                ))
-                
-                y_min = min(valores)
-                y_max = max(valores)
-                y_range_margin = (y_max - y_min) * 0.3
-
-                fig.update_layout(
-                    title="% Crescimento",
-                    xaxis_title="",
-                    yaxis_title="Valor %",
-                    font=dict(color="white", size=14),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    height=450, 
-                    width=450,
-                    margin=dict(t=100, b=50, l=50, r=50),
-                    yaxis=dict(
-                        range=[y_min - y_range_margin, y_max + y_range_margin],
-                        zeroline=True,
-                        zerolinecolor='gray'
-                    )
-                )
-                return fig
-
-            @st.cache_data
-            def grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado):
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado)
-
-                if not vendas:
-                    st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-                    return
-
-                valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
-                datas = [v[1] for v in vendas]
-                meses = [v[2] for v in vendas]
-                anos = [v[3] for v in vendas]
-
-                df_vendas = pd.DataFrame({
-                    "Data": pd.to_datetime(datas),
-                    "Valor": valores,
-                    "Mês": [str(m) for m in meses],
-                    "Ano": [str(a) for a in anos]
-                })
-
-                df_vendas["Dia"] = df_vendas["Data"].dt.day 
-                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
-                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
-
-                fig = go.Figure()
-
-                for mesano in df_vendas["MesAno"].unique():
-                    df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
-
-                    fig.add_trace(go.Scatter(
-                        x=df_mesano["Dia"], 
-                        y=df_mesano["Valor"],
-                        mode='lines+markers',
-                        name=mesano,
-                        hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
-                        customdata=df_mesano["Valor_formatado"]
-                    ))
-
-                fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
-                    xaxis_title="Dia do Mês",
-                    yaxis_title="Vendas (R$)",
-                    template="plotly_white",
-                    showlegend=True,
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True, 
-                        tickformat=",."
-                    )
-                )
-
-                return fig
-
-            def grafico_de_evolucao_vendas_mes_anterior(vendas_mensais, filial, ano):
-                df_vendas = pd.DataFrame(list(vendas_mensais.items()), columns=['Mês', 'Vendas'])
-                df_vendas['Mês'] = pd.to_datetime(df_vendas['Mês'], format='%m/%Y')
-                df_vendas = df_vendas.sort_values("Mês")
-
-                fig = go.Figure()
-
-                df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
-
-                fig.add_trace(go.Scatter(
-                    x=df_vendas["Mês"].dt.strftime('%m/%Y'),
-                    y=df_vendas["Vendas"],
-                    mode='lines+markers',
-                    name="Vendas",
-                    hovertemplate='Mês %{x}<br>Valor: %{customdata}<extra></extra>',
-                    customdata=df_vendas["Valor_formatado"]
-                ))
-
-                fig.update_layout(
-                    title=f"📊 Vendas - Evolução até {mes_final:02d}/{ano} - {filial}",
-                    xaxis_title="Meses",
-                    yaxis_title="Valor das Vendas (R$)",
-                    font=dict(color="white", size=14),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    yaxis_tickformat="R$ ,.2f",
-                    template="plotly_white",
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True,
-                        tickformat=",."
-                    )
-                )
-                return fig
-
-            # Exibição:
-            col1, col2, col3 = st.columns(3)
-
-            exibindo_grafico_de_barras = grafico_de_barras_mes_anterior(meta_mes, total_vendas, vendas_mes_atual)
-            st.plotly_chart(exibindo_grafico_de_barras, use_container_width=True)
-
-            st.divider()
-
-            exibindo_grafico_de_crescimento = grafico_de_crescimento_mes(vendas_mes_atual, total_vendas, meta_mes)
-            st.sidebar.plotly_chart(exibindo_grafico_de_crescimento)
-
-            exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado)
-            st.write(exibindo_grafico_de_linhas_vendas_por_mes)
-
-            exibindo_grafico_acompanhamanto_mensal = grafico_de_evolucao_vendas_mes_anterior(vendas_mensais, filial_selecionada, ano_selecionado)
-            st.write(exibindo_grafico_acompanhamanto_mensal)
-
-        pagina_meses_anterior()
-
-    # Botão sair da conta (movido para depois das funções de página)
-    if st.sidebar.button("🚪 Sair"):
-        st.session_state.authenticated = False
-        st.session_state.page = None
-        st.rerun()
+    # Restante do código (página meses anteriores e outras páginas) permanece igual...
+    # ... [código das outras páginas e funções principais]
 
 # PÁGINA UNIT
 def paginaunit():
     verificar_autenticacao()
-    
-    # Configuração da página
     st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
     
-    # Barra lateral
     if 'user_info' in st.session_state:
         st.sidebar.subheader("Informações do Usuário")
         st.sidebar.write(f"👤 Nome: {st.session_state.user_info['nome']}")
         st.sidebar.write(f"🔑 Permissão: {st.session_state.user_info['permissao']}")
         
-        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
                 st.rerun()
     
-    # Botão sair da conta
     if st.sidebar.button("🚪 Sair"):
         st.session_state.authenticated = False
         st.session_state.page = None
         st.rerun()
     
-    # Nome Principal Pagina
     st.title("📊 TESTE")
-    
-    # Mensagem boas vindas com nome cadastrado na conta
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
 # PÁGINA RESIDENCIA
 def paginaresidencia():
     verificar_autenticacao()
-    
-    # Configuração da página
     st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
     
-    # Barra lateral
     if 'user_info' in st.session_state:
         st.sidebar.subheader("Informações do Usuário")
         st.sidebar.write(f"👤 Nome: {st.session_state.user_info['nome']}")
         st.sidebar.write(f"🔑 Permissão: {st.session_state.user_info['permissao']}")
         
-        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
                 st.rerun()
     
-    # Botão sair da conta
     if st.sidebar.button("🚪 Sair"):
         st.session_state.authenticated = False
         st.session_state.page = None
         st.rerun()
     
-    # Nome Principal Pagina
     st.title("📊 Residencia")
-    
-    # Mensagem boas vindas com nome cadastrado na conta
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
 # SISTEMA DINÂMICO DE ROTEAMENTO
 def encontrar_paginas():
-    """Lista todas as funções pagina* disponíveis"""
     return [name for name, func in getmembers(sys.modules[__name__]) 
              if name.startswith('pagina') and isfunction(func)]
 
 def main():
-    # Pega o nome da página da session_state
     nome_pagina = st.session_state.get('dashboard_page', 'pagina_nao_encontrada')
     
-    # Verifica se a função existe
     if nome_pagina in globals() and callable(globals()[nome_pagina]):
         globals()[nome_pagina]()
     else:
