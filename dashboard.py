@@ -66,343 +66,371 @@ def paginaatos():
     # Mostra a página apropriada com base no estado
     if st.session_state['pagina'] == 'principal':
         def pagina_principal():
-            # Início sidebar
-            st.markdown(
-                """
-                <style>
-                [data-testid="stSidebar"] {
-                    background-color: #800000; 
-                }
-                </style>
-                """,
-                unsafe_allow_html=True,
+    # Início sidebar
+    st.markdown(
+        """
+        <style>
+        [data-testid="stSidebar"] {
+            background-color: #800000; 
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.sidebar.header("Filtros")
+    filiais = consultaSQL.obter_nmfilial()
+    filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
+
+    if st.sidebar.button("Selecionar Meses Anteriores"):
+        st.session_state['pagina'] = 'meses_anterior'
+        st.rerun()
+
+    mes_referencia = [datetime.now().strftime('%B').capitalize()]
+
+    # Fim sidebar
+
+    # Início cabeçalho
+    left_co, cent_co, last_co = st.columns(3)
+    with cent_co:
+        st.image('logoatos.png', width=500)
+    st.write(f"# Relatório de venda da {filial_selecionada}")
+    # Fim cabeçalho
+
+    total_vendas = consultaSQL.obter_vendas_ano_anterior(filial_selecionada)
+    meta_mes = consultaSQL.obter_meta_mes(filial_selecionada)
+    previsao = consultaSQL.obter_previsao_vendas(filial_selecionada)
+    acumulo_vendas_ano_anterior = consultaSQL.acumulo_vendas_periodo_ano_anterior(filial_selecionada)
+    acumulo_meta_ano_anterior = consultaSQL.obter_acumulo_meta_ano_anterior(filial_selecionada)
+    acumulo_de_vendas = consultaSQL.obter_acumulo_de_vendas(filial_selecionada)
+    vendas_dia_anterior, data_venda_dia = consultaSQL.obter_ultima_venda_com_valor(filial_selecionada)
+    percentual_crescimento_atual = consultaSQL.obter_percentual_de_crescimento_atual(filial_selecionada)
+    percentual_crescimento_meta = consultaSQL.obter_percentual_crescimento_meta(filial_selecionada)
+    vendas_mensais = consultaSQL.obter_vendas_anual_e_filial(filial_selecionada)
+
+    @st.cache_data
+    def grafico_de_barras(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas):
+        def safe_float(value):
+            if value is None:
+                return 0.0
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return 0.0
+
+        meta_mes = safe_float(meta_mes)
+        previsao = safe_float(previsao)
+        acumulo_meta_ano_anterior = safe_float(acumulo_meta_ano_anterior)
+        acumulo_de_vendas = safe_float(acumulo_de_vendas)
+
+        categorias = ["Meta do mês", "Previsão", "Acumulado meta", "Acumulado Vendas"]
+        valores = [meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas]
+        cores = ["darkgray", "darkblue", "darkred", "white"]
+
+        fig = go.Figure()
+        
+        texto_formatado = [f"R$ {format_currency(v)}" for v in valores]
+        hover_texto = [f"{cat}<br>R$ {format_currency(v)}" for cat, v in zip(categorias, valores)]
+        
+        fig.add_trace(go.Bar(
+            x=categorias,
+            y=valores,
+            marker_color=cores,
+            text=texto_formatado,
+            textposition='outside',
+            hovertext=hover_texto,
+            hoverinfo='text'
+        ))
+
+        fig.update_layout(
+            title=f"📊 Metas e previsões da {filial_selecionada}",
+            xaxis_title="",
+            yaxis_title="Valor (R$)",
+            font=dict(color="white", size=14),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=550,
+            width=500,
+            yaxis=dict(
+                tickprefix="R$ ",
+                separatethousands=True,
+                tickformat=",."
             )
+        )
+        return fig
 
-            st.sidebar.header("Filtros")
-            filiais = consultaSQL.obter_nmfilial()
-            filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
+    @st.cache_data 
+    def grafico_de_crescimento(percentual_crescimento_atual, percentual_crescimento_meta):
+        try:
+            percentual_crescimento_atual = float(percentual_crescimento_atual)
+        except (ValueError, TypeError):
+            percentual_crescimento_atual = 0.0
 
-            if st.sidebar.button("Selecionar Meses Anteriores"):
-                st.session_state['pagina'] = 'meses_anterior'
-                st.rerun()
-
-            mes_referencia = [datetime.now().strftime('%B').capitalize()]
-
-            # Fim sidebar
-
-            # Início cabeçalho
-            left_co, cent_co, last_co = st.columns(3)
-            with cent_co:
-                st.image('logoatos.png', width=500)
-            st.write(f"# Relatório de venda da {filial_selecionada}")
-            # Fim cabeçalho
-
-            total_vendas = consultaSQL.obter_vendas_ano_anterior(filial_selecionada)
-            meta_mes = consultaSQL.obter_meta_mes(filial_selecionada)
-            previsao = consultaSQL.obter_previsao_vendas(filial_selecionada)
-            acumulo_vendas_ano_anterior = consultaSQL.acumulo_vendas_periodo_ano_anterior(filial_selecionada)
-            acumulo_meta_ano_anterior = consultaSQL.obter_acumulo_meta_ano_anterior(filial_selecionada)
-            acumulo_de_vendas = consultaSQL.obter_acumulo_de_vendas(filial_selecionada)
-            vendas_dia_anterior, data_venda_dia = consultaSQL.obter_ultima_venda_com_valor(filial_selecionada)
-            percentual_crescimento_atual = consultaSQL.obter_percentual_de_crescimento_atual(filial_selecionada)
-            percentual_crescimento_meta = consultaSQL.obter_percentual_crescimento_meta(filial_selecionada)
-            vendas_mensais = consultaSQL.obter_vendas_anual_e_filial(filial_selecionada)
-
-            @st.cache_data
-            def grafico_de_barras(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas):
-                def safe_float(value):
-                    if value is None:
-                        return 0.0
-                    try:
-                        return float(value)
-                    except (ValueError, TypeError):
-                        return 0.0
-
-                meta_mes = safe_float(meta_mes)
-                previsao = safe_float(previsao)
-                acumulo_meta_ano_anterior = safe_float(acumulo_meta_ano_anterior)
-                acumulo_de_vendas = safe_float(acumulo_de_vendas)
-
-                categorias = ["Meta do mês", "Previsão", "Acumulado meta", "Acumulado Vendas"]
-                valores = [meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas]
-                cores = ["darkgray", "darkblue", "darkred", "white"]
-
-                fig = go.Figure()
-                
-                texto_formatado = [f"R$ {format_currency(v)}" for v in valores]
-                hover_texto = [f"{cat}<br>R$ {format_currency(v)}" for cat, v in zip(categorias, valores)]
-                
-                fig.add_trace(go.Bar(
-                    x=categorias,
-                    y=valores,
-                    marker_color=cores,
-                    text=texto_formatado,
-                    textposition='outside',
-                    hovertext=hover_texto,
-                    hoverinfo='text'
-                ))
-
-                fig.update_layout(
-                    title=f"📊 Metas e previsões da {filial_selecionada}",
-                    xaxis_title="",
-                    yaxis_title="Valor (R$)",
-                    font=dict(color="white", size=14),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    height=550,
-                    width=500,
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True,
-                        tickformat=",."
-                    )
-                )
-                return fig
-
-            @st.cache_data 
-            def grafico_de_crescimento(percentual_crescimento_atual, percentual_crescimento_meta):
-                try:
-                    percentual_crescimento_atual = float(percentual_crescimento_atual)
-                except (ValueError, TypeError):
-                    percentual_crescimento_atual = 0.0
-
-                try:
-                    percentual_crescimento_meta = float(percentual_crescimento_meta)
-                except (ValueError, TypeError):
-                    percentual_crescimento_meta = 0.0
-                    
-                fig = go.Figure()
-
-                categorias = ["Cresc. 2025", "Cresc. meta"]
-                valores = [percentual_crescimento_atual, percentual_crescimento_meta]
-                cores = ["green", "aqua"]
-
-                texto_formatado = [f"{v:.2f}%" for v in valores]
-                hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
-
-                fig.add_trace(go.Bar(
-                    x=categorias,
-                    y=valores,
-                    marker_color=cores,
-                    text=texto_formatado,
-                    textposition='outside',
-                    hovertext=hover_texto,
-                    hoverinfo='text' 
-                ))
-
-                y_min = min(valores)
-                y_max = max(valores)
-                y_range_margin = (y_max - y_min) * 0.3  
-
-                fig.update_layout(
-                    title="% Crescimento",
-                    xaxis_title="",
-                    yaxis_title="Valor %",
-                    font=dict(color="white", size=14),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    height=450,
-                    width=450,
-                    margin=dict(t=100, b=50, l=50, r=50), 
-                    yaxis=dict(
-                        range=[y_min - y_range_margin, y_max + y_range_margin],
-                        zeroline=True,
-                        zerolinecolor='gray'
-                    )
-                )
-
-                return fig
-
-            @st.cache_data
-            def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
-
-                if not vendas:
-                    st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-                    return
-
-                valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
-                datas = [v[1] for v in vendas]
-                meses = [v[2] for v in vendas]
-                anos = [v[3] for v in vendas]
-
-                df_vendas = pd.DataFrame({
-                    "Data": pd.to_datetime(datas),
-                    "Valor": valores,
-                    "Mês": [str(m) for m in meses],
-                    "Ano": [str(a) for a in anos]
-                })
-
-                df_vendas["Dia"] = df_vendas["Data"].dt.day 
-                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
-
-                fig = go.Figure()
-
-                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
-
-                for mesano in df_vendas["MesAno"].unique():
-                    df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
-
-                    fig.add_trace(go.Scatter(
-                        x=df_mesano["Dia"], 
-                        y=df_mesano["Valor"],
-                        mode='lines+markers',
-                        name=mesano,
-                        hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
-                        customdata=df_mesano["Valor_formatado"]
-                    ))
-
-                fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
-                    xaxis_title="Dia do Mês",
-                    yaxis_title="Vendas (R$)",
-                    template="plotly_white",
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True, 
-                        tickformat=",."
-                    )
-                )
-
-                return fig
-
-            def grafico_de_evolucao_vendas(vendas_mensais):
-                df_vendas = pd.DataFrame(list(vendas_mensais.items()), columns=['Mês', 'Vendas'])
-                df_vendas['Mês'] = pd.to_datetime(df_vendas['Mês'], format='%m/%Y')
-                df_vendas = df_vendas.sort_values("Mês")
-
-                fig = go.Figure()
-
-                df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
-
-                fig.add_trace(go.Scatter(
-                    x=df_vendas["Mês"].dt.strftime('%m/%Y'),
-                    y=df_vendas["Vendas"],
-                    mode='lines+markers',
-                    name="Vendas",
-                    hovertemplate='Mês %{x}<br>Valor: %{customdata}<extra></extra>',
-                    customdata=df_vendas["Valor_formatado"]
-                ))
-
-                fig.update_layout(
-                    title=f"📊 Vendas nos últimos 12 meses - {filial_selecionada}",
-                    xaxis_title="Meses",
-                    yaxis_title="Valor das Vendas (R$)",
-                    font=dict(color="white", size=14),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    yaxis_tickformat="R$ ,.2f",
-                    template="plotly_white",
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True,
-                        tickformat=",." 
-                    )
-                )
-                return fig
-
-            # Mapa das filiais
-            coordenadas_filiais = {
-                'FILIAL BELÉM': {'latitude': -1.455, 'longitude': -48.489},
-                'FILIAL BELO HORIZONTE': {'latitude': -19.9167, 'longitude': -43.9345},
-                'FILIAL BRASÍLIA': {'latitude': -15.7939, 'longitude': -47.8828},
-                'FILIAL CAMPINAS': {'latitude': -22.9056, 'longitude': -47.0608},
-                'FILIAL CURITIBA': {'latitude': -25.4284, 'longitude': -49.2733},
-                'FILIAL DUQUE DE CAXIAS': {'latitude': -22.7868, 'longitude': -43.3054},
-                'FILIAL FORTALEZA': {'latitude': -3.7172, 'longitude': -38.5433},
-                'FILIAL GOIÂNIA': {'latitude': -16.6869, 'longitude': -49.2648},
-                'FILIAL GUARULHOS': {'latitude': -23.4545, 'longitude': -46.5333},
-                'FILIAL MACEIÓ': {'latitude': -9.6658, 'longitude': -35.735},
-                'FILIAL MANAUS': {'latitude': -3.119, 'longitude': -60.0217},
-                'FILIAL RECIFE': {'latitude': -8.0476, 'longitude': -34.877},
-                'FILIAL RIO DE JANEIRO': {'latitude': -22.9068, 'longitude': -43.1729},
-                'FILIAL SALVADOR': {'latitude': -12.9714, 'longitude': -38.5014},
-                'FILIAL SÃO GONÇALO': {'latitude': -22.8268, 'longitude': -43.0634},
-                'FILIAL SÃO LUÍS': {'latitude': -2.5307, 'longitude': -44.3068},
-                'FILIAL SÃO PAULO': {'latitude': -23.5505, 'longitude': -46.6333},
-            }
+        try:
+            percentual_crescimento_meta = float(percentual_crescimento_meta)
+        except (ValueError, TypeError):
+            percentual_crescimento_meta = 0.0
             
-            dados_vendas = pd.DataFrame({
-                'filial': ['FILIAL BELÉM', 'FILIAL BELO HORIZONTE', 'FILIAL BRASÍLIA', 'FILIAL CAMPINAS', 
-                          'FILIAL CURITIBA', 'FILIAL DUQUE DE CAXIAS', 'FILIAL FORTALEZA', 'FILIAL GOIÂNIA', 
-                          'FILIAL GUARULHOS', 'FILIAL MACEIÓ', 'FILIAL MANAUS', 'FILIAL RECIFE', 
-                          'FILIAL RIO DE JANEIRO', 'FILIAL SALVADOR', 'FILIAL SÃO GONÇALO', 
-                          'FILIAL SÃO LUÍS', 'FILIAL SÃO PAULO']
-            })
-            
-            dados_vendas['latitude'] = dados_vendas['filial'].map(lambda x: coordenadas_filiais[x]['latitude'])
-            dados_vendas['longitude'] = dados_vendas['filial'].map(lambda x: coordenadas_filiais[x]['longitude'])
+        fig = go.Figure()
 
-            # Exibição:
-            col1, col2, col3 = st.columns(3)
+        categorias = ["Cresc. 2025", "Cresc. meta"]
+        valores = [percentual_crescimento_atual, percentual_crescimento_meta]
+        cores = ["green", "aqua"]
 
-            with col1:
-                st.write(f"""#### Vendas 2024: \n 
-                        R$ {format_currency(total_vendas)}
-                        """)
-            with col2:
-                st.write(f"""#### Acumulado 2024: \n
-                        R$ {format_currency(acumulo_vendas_ano_anterior)}
-                        """)
-            with col3:
-                st.write(f"""#### Vendas do dia: ({data_venda_dia.strftime('%d/%m/%Y') if data_venda_dia else 'Sem data'})\n
-                        R$ {format_currency(vendas_dia_anterior)} """)
+        texto_formatado = [f"{v:.2f}%" for v in valores]
+        hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
 
-            exibindo_grafico_de_barras = grafico_de_barras(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas)
-            st.plotly_chart(exibindo_grafico_de_barras, use_container_width=True)
+        fig.add_trace(go.Bar(
+            x=categorias,
+            y=valores,
+            marker_color=cores,
+            text=texto_formatado,
+            textposition='outside',
+            hovertext=hover_texto,
+            hoverinfo='text' 
+        ))
 
-            st.divider()
+        y_min = min(valores)
+        y_max = max(valores)
+        y_range_margin = (y_max - y_min) * 0.3  
 
-            exibindo_grafico_de_crescimento = grafico_de_crescimento(percentual_crescimento_atual, percentual_crescimento_meta)
-            st.sidebar.plotly_chart(exibindo_grafico_de_crescimento)
-
-            exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial(mes_referencia, filial_selecionada)
-            st.write(exibindo_grafico_de_linhas_vendas_por_mes)
-
-            exibindo_grafico_acompanhamanto_anual = grafico_de_evolucao_vendas(vendas_mensais)
-            st.write(exibindo_grafico_acompanhamanto_anual)
-
-            # Simula valores de vendas para cada filial
-            dados_vendas["vendas"] = dados_vendas["filial"].apply(
-                lambda f: max(float(consultaSQL.obter_acumulo_de_vendas(f) or 0), 1)
+        fig.update_layout(
+            title="% Crescimento",
+            xaxis_title="",
+            yaxis_title="Valor %",
+            font=dict(color="white", size=14),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=450,
+            width=450,
+            margin=dict(t=100, b=50, l=50, r=50), 
+            yaxis=dict(
+                range=[y_min - y_range_margin, y_max + y_range_margin],
+                zeroline=True,
+                zerolinecolor='gray'
             )
+        )
 
-            dados_vendas["vendas_formatado"] = dados_vendas["vendas"].apply(
-                lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return fig
+
+    @st.cache_data
+    def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
+        # Primeiro, verifique se mes_referencia é uma lista e pegue o primeiro item
+        mes_nome = mes_referencia[0] if isinstance(mes_referencia, list) else mes_referencia
+        
+        # Mapeamento de meses em português (com acentos e sem)
+        nomes_para_numeros = {
+            'janeiro': 1, 'Janeiro': 1,
+            'fevereiro': 2, 'Fevereiro': 2,
+            'março': 3, 'Março': 3, 'marco': 3, 'Marco': 3,
+            'abril': 4, 'Abril': 4,
+            'maio': 5, 'Maio': 5,
+            'junho': 6, 'Junho': 6,
+            'julho': 7, 'Julho': 7,
+            'agosto': 8, 'Agosto': 8,
+            'setembro': 9, 'Setembro': 9,
+            'outubro': 10, 'Outubro': 10,
+            'novembro': 11, 'Novembro': 11,
+            'dezembro': 12, 'Dezembro': 12
+        }
+        
+        try:
+            mes_num = nomes_para_numeros.get(mes_nome.lower().capitalize())
+            if mes_num is None:
+                st.error(f"Mês '{mes_nome}' não reconhecido. Usando mês atual como padrão.")
+                mes_num = datetime.now().month
+        except Exception as e:
+            st.error(f"Erro ao converter mês: {e}. Usando mês atual como padrão.")
+            mes_num = datetime.now().month
+        
+        vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
+
+        if not vendas:
+            st.warning("Nenhuma venda encontrada para os filtros selecionados.")
+            return go.Figure()  # Retorna um gráfico vazio
+
+        valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
+        datas = [v[1] for v in vendas]
+        meses = [v[2] for v in vendas]
+        anos = [v[3] for v in vendas]
+
+        df_vendas = pd.DataFrame({
+            "Data": pd.to_datetime(datas),
+            "Valor": valores,
+            "Mês": [str(m) for m in meses],
+            "Ano": [str(a) for a in anos]
+        })
+
+        df_vendas["Dia"] = df_vendas["Data"].dt.day 
+        df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
+
+        fig = go.Figure()
+
+        df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
+
+        for mesano in df_vendas["MesAno"].unique():
+            df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
+
+            fig.add_trace(go.Scatter(
+                x=df_mesano["Dia"], 
+                y=df_mesano["Valor"],
+                mode='lines+markers',
+                name=mesano,
+                hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
+                customdata=df_mesano["Valor_formatado"]
+            ))
+
+        fig.update_layout(
+            title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+            xaxis_title="Dia do Mês",
+            yaxis_title="Vendas (R$)",
+            template="plotly_white",
+            yaxis=dict(
+                tickprefix="R$ ",
+                separatethousands=True, 
+                tickformat=",."
             )
+        )
 
-            fig_mapa = px.scatter_mapbox(
-                dados_vendas,
-                lat="latitude",
-                lon="longitude",
-                color="vendas",
-                size="vendas",
-                size_max=30,
-                zoom=3,
-                height=600,
-                color_continuous_scale="RdBu",
-                custom_data=["filial", "vendas_formatado"]  
+        return fig
+
+    def grafico_de_evolucao_vendas(vendas_mensais):
+        df_vendas = pd.DataFrame(list(vendas_mensais.items()), columns=['Mês', 'Vendas'])
+        df_vendas['Mês'] = pd.to_datetime(df_vendas['Mês'], format='%m/%Y')
+        df_vendas = df_vendas.sort_values("Mês")
+
+        fig = go.Figure()
+
+        df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
+
+        fig.add_trace(go.Scatter(
+            x=df_vendas["Mês"].dt.strftime('%m/%Y'),
+            y=df_vendas["Vendas"],
+            mode='lines+markers',
+            name="Vendas",
+            hovertemplate='Mês %{x}<br>Valor: %{customdata}<extra></extra>',
+            customdata=df_vendas["Valor_formatado"]
+        ))
+
+        fig.update_layout(
+            title=f"📊 Vendas nos últimos 12 meses - {filial_selecionada}",
+            xaxis_title="Meses",
+            yaxis_title="Valor das Vendas (R$)",
+            font=dict(color="white", size=14),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            yaxis_tickformat="R$ ,.2f",
+            template="plotly_white",
+            yaxis=dict(
+                tickprefix="R$ ",
+                separatethousands=True,
+                tickformat=",." 
             )
+        )
+        return fig
 
-            fig_mapa.update_traces(
-                hovertemplate="<b>%{customdata[0]}</b><br>Vendas: %{customdata[1]}<extra></extra>"
-            )
+    # Mapa das filiais
+    coordenadas_filiais = {
+        'FILIAL BELÉM': {'latitude': -1.455, 'longitude': -48.489},
+        'FILIAL BELO HORIZONTE': {'latitude': -19.9167, 'longitude': -43.9345},
+        'FILIAL BRASÍLIA': {'latitude': -15.7939, 'longitude': -47.8828},
+        'FILIAL CAMPINAS': {'latitude': -22.9056, 'longitude': -47.0608},
+        'FILIAL CURITIBA': {'latitude': -25.4284, 'longitude': -49.2733},
+        'FILIAL DUQUE DE CAXIAS': {'latitude': -22.7868, 'longitude': -43.3054},
+        'FILIAL FORTALEZA': {'latitude': -3.7172, 'longitude': -38.5433},
+        'FILIAL GOIÂNIA': {'latitude': -16.6869, 'longitude': -49.2648},
+        'FILIAL GUARULHOS': {'latitude': -23.4545, 'longitude': -46.5333},
+        'FILIAL MACEIÓ': {'latitude': -9.6658, 'longitude': -35.735},
+        'FILIAL MANAUS': {'latitude': -3.119, 'longitude': -60.0217},
+        'FILIAL RECIFE': {'latitude': -8.0476, 'longitude': -34.877},
+        'FILIAL RIO DE JANEIRO': {'latitude': -22.9068, 'longitude': -43.1729},
+        'FILIAL SALVADOR': {'latitude': -12.9714, 'longitude': -38.5014},
+        'FILIAL SÃO GONÇALO': {'latitude': -22.8268, 'longitude': -43.0634},
+        'FILIAL SÃO LUÍS': {'latitude': -2.5307, 'longitude': -44.3068},
+        'FILIAL SÃO PAULO': {'latitude': -23.5505, 'longitude': -46.6333},
+    }
+    
+    dados_vendas = pd.DataFrame({
+        'filial': ['FILIAL BELÉM', 'FILIAL BELO HORIZONTE', 'FILIAL BRASÍLIA', 'FILIAL CAMPINAS', 
+                  'FILIAL CURITIBA', 'FILIAL DUQUE DE CAXIAS', 'FILIAL FORTALEZA', 'FILIAL GOIÂNIA', 
+                  'FILIAL GUARULHOS', 'FILIAL MACEIÓ', 'FILIAL MANAUS', 'FILIAL RECIFE', 
+                  'FILIAL RIO DE JANEIRO', 'FILIAL SALVADOR', 'FILIAL SÃO GONÇALO', 
+                  'FILIAL SÃO LUÍS', 'FILIAL SÃO PAULO']
+    })
+    
+    dados_vendas['latitude'] = dados_vendas['filial'].map(lambda x: coordenadas_filiais[x]['latitude'])
+    dados_vendas['longitude'] = dados_vendas['filial'].map(lambda x: coordenadas_filiais[x]['longitude'])
 
-            fig_mapa.update_layout(
-                mapbox_style="carto-darkmatter",
-                margin={"r": 0, "t": 0, "l": 0, "b": 0},
-                coloraxis_colorbar=dict(
-                    title="Vendas (R$)",
-                    tickvals=np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5),
-                    ticktext=[f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") 
-                              for v in np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5)]
-                )
-            )
+    # Exibição:
+    col1, col2, col3 = st.columns(3)
 
-            st.subheader("📍 Mapa das filiais - Vendas Acumuladas Mês")
-            st.plotly_chart(fig_mapa, use_container_width=True)
+    with col1:
+        st.write(f"""#### Vendas 2024: \n 
+                R$ {format_currency(total_vendas)}
+                """)
+    with col2:
+        st.write(f"""#### Acumulado 2024: \n
+                R$ {format_currency(acumulo_vendas_ano_anterior)}
+                """)
+    with col3:
+        st.write(f"""#### Vendas do dia: ({data_venda_dia.strftime('%d/%m/%Y') if data_venda_dia else 'Sem data'})\n
+                R$ {format_currency(vendas_dia_anterior)} """)
 
-        pagina_principal()
+    exibindo_grafico_de_barras = grafico_de_barras(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas)
+    st.plotly_chart(exibindo_grafico_de_barras, use_container_width=True)
+
+    st.divider()
+
+    exibindo_grafico_de_crescimento = grafico_de_crescimento(percentual_crescimento_atual, percentual_crescimento_meta)
+    st.sidebar.plotly_chart(exibindo_grafico_de_crescimento)
+
+    exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial(mes_referencia, filial_selecionada)
+    st.write(exibindo_grafico_de_linhas_vendas_por_mes)
+
+    exibindo_grafico_acompanhamanto_anual = grafico_de_evolucao_vendas(vendas_mensais)
+    st.write(exibindo_grafico_acompanhamanto_anual)
+
+    # Simula valores de vendas para cada filial
+    dados_vendas["vendas"] = dados_vendas["filial"].apply(
+        lambda f: max(float(consultaSQL.obter_acumulo_de_vendas(f) or 0), 1)
+    )
+
+    dados_vendas["vendas_formatado"] = dados_vendas["vendas"].apply(
+        lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    )
+
+    fig_mapa = px.scatter_mapbox(
+        dados_vendas,
+        lat="latitude",
+        lon="longitude",
+        color="vendas",
+        size="vendas",
+        size_max=30,
+        zoom=3,
+        height=600,
+        color_continuous_scale="RdBu",
+        custom_data=["filial", "vendas_formatado"]  
+    )
+
+    fig_mapa.update_traces(
+        hovertemplate="<b>%{customdata[0]}</b><br>Vendas: %{customdata[1]}<extra></extra>"
+    )
+
+    fig_mapa.update_layout(
+        mapbox_style="carto-darkmatter",
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        coloraxis_colorbar=dict(
+            title="Vendas (R$)",
+            tickvals=np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5),
+            ticktext=[f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") 
+                      for v in np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5)]
+        )
+    )
+
+    st.subheader("📍 Mapa das filiais - Vendas Acumuladas Mês")
+    st.plotly_chart(fig_mapa, use_container_width=True)
+
+pagina_principal()
     else:
         def pagina_meses_anterior():
             st.markdown(
