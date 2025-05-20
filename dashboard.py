@@ -52,12 +52,6 @@ def paginaatos():
     # Configuração da página
     st.set_page_config(page_title="Atos Capital", page_icon="📊", layout="wide")
 
-    # Lista de meses em português
-    meses_pt_br = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ]
-    
     # Barra lateral
     if 'user_info' in st.session_state:
         if st.session_state.user_info['permissao'].lower() == 'adm':
@@ -92,8 +86,7 @@ def paginaatos():
                 st.session_state['pagina'] = 'meses_anterior'
                 st.rerun()
 
-            mes_atual = datetime.now().month - 1  # Janeiro é 0
-            mes_referencia = [meses_pt_br[mes_atual]]
+            mes_referencia = [datetime.now().strftime('%B').capitalize()]
 
             # Fim sidebar
 
@@ -222,9 +215,7 @@ def paginaatos():
 
             @st.cache_data
             def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-                # Garante que mes_referencia seja uma string
-                mes_nome = mes_referencia[0] if isinstance(mes_referencia, list) else mes_referencia
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_nome, filial_selecionada)
+                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
 
                 if not vendas:
                     st.warning("Nenhuma venda encontrada para os filtros selecionados.")
@@ -262,7 +253,7 @@ def paginaatos():
                     ))
 
                 fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
                     xaxis_title="Dia do Mês",
                     yaxis_title="Vendas (R$)",
                     template="plotly_white",
@@ -429,6 +420,9 @@ def paginaatos():
             filiais = consultaSQL.obter_nmfilial()
             filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
 
+            meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+
             hoje = datetime.today()
             dia_hoje = hoje.day
             mes_atual = hoje.month
@@ -437,16 +431,19 @@ def paginaatos():
             anos_disponiveis = consultaSQL.obter_anos_disponiveis()
             ano_selecionado = st.sidebar.selectbox("Selecione o ano de referência", anos_disponiveis, index=len(anos_disponiveis) - 1)
 
+            if dia_hoje == 1 and mes_atual == 1:
+                anos_disponiveis.remove(ano_atual)
+
             if ano_selecionado == ano_atual:
                 if dia_hoje == 1:
                     if mes_atual == 1:
                         meses_disponiveis = []
                     else:
-                        meses_disponiveis = meses_pt_br[:mes_atual - 2]
+                        meses_disponiveis = meses[:mes_atual - 2]
                 else:
-                    meses_disponiveis = meses_pt_br[:mes_atual - 1]
+                    meses_disponiveis = meses[:mes_atual - 1]
             else:
-                meses_disponiveis = meses_pt_br
+                meses_disponiveis = meses
 
             if meses_disponiveis:
                 mes_referencia = st.sidebar.selectbox("Selecione o mês de referência", meses_disponiveis)
@@ -458,7 +455,7 @@ def paginaatos():
                 st.sidebar.warning("Nenhum mês disponível para seleção com base na data atual.")
                 mes_referencia = None
                   
-            indice_mes_referencia = meses_pt_br.index(mes_referencia) + 1
+            indice_mes_referencia = meses.index(mes_referencia) + 1
 
             if dia_hoje == 1 and indice_mes_referencia == mes_atual and ano_selecionado == ano_atual:
                 data_ref = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
@@ -473,7 +470,8 @@ def paginaatos():
                 mes_final = indice_mes_referencia
                 ano_final = ano_selecionado
 
-            mes_selecionado = mes_referencia
+            mes_referencia = [mes_referencia]
+            mes_selecionado = mes_referencia[0]
             # Fim sidebar
 
             # Início cabeçalho
@@ -486,6 +484,7 @@ def paginaatos():
             total_vendas = consultaSQL.obter_vendas_ano_anterior_mes_anterior(filial_selecionada, mes_final, ano_final - 1)
             meta_mes = consultaSQL.obter_meta_mes_anterior(filial_selecionada, mes_final, ano_final)
             vendas_mes_atual = consultaSQL.obter_vendas_mes_anterior(filial_selecionada, mes_final, ano_selecionado)
+            percentual_crescimento_meta = consultaSQL.obter_percentual_crescimento_meta_mes_anterior(filial_selecionada)
             vendas_mensais = consultaSQL.obter_vendas_anual_e_filial_mes_anterior(filial_selecionada, mes=mes_final, ano=ano_final)
 
             def calcular_percentual_crescimento(vendas_mes_atual, total_vendas):
@@ -607,7 +606,7 @@ def paginaatos():
                 return fig
 
             @st.cache_data
-            def grafico_linhas_por_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado):
+            def grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado):
                 vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado)
 
                 if not vendas:
@@ -645,7 +644,7 @@ def paginaatos():
                     ))
 
                 fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_referencia} - {filial_selecionada}",
+                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
                     xaxis_title="Dia do Mês",
                     yaxis_title="Vendas (R$)",
                     template="plotly_white",
@@ -705,7 +704,7 @@ def paginaatos():
             exibindo_grafico_de_crescimento = grafico_de_crescimento_mes(vendas_mes_atual, total_vendas, meta_mes)
             st.sidebar.plotly_chart(exibindo_grafico_de_crescimento)
 
-            exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial_mes_anterior(mes_selecionado, filial_selecionada, ano_selecionado)
+            exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado)
             st.write(exibindo_grafico_de_linhas_vendas_por_mes)
 
             exibindo_grafico_acompanhamanto_mensal = grafico_de_evolucao_vendas_mes_anterior(vendas_mensais, filial_selecionada, ano_selecionado)
