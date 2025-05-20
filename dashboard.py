@@ -10,7 +10,15 @@ from inspect import getmembers, isfunction
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
-lc.setlocale(lc.LC_ALL, 'pt_BR')
+# Configuração do locale com fallback seguro
+try:
+    lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')
+except lc.Error:
+    try:
+        lc.setlocale(lc.LC_ALL, 'pt_BR')
+    except lc.Error:
+        lc.setlocale(lc.LC_ALL, 'C')  # Fallback para locale padrão
+        st.warning("Locale pt_BR não disponível. Usando configurações padrão.")
 
 def verificar_autenticacao():
     """Verifica se o usuário está autenticado"""
@@ -29,9 +37,15 @@ def pagina_nao_encontrada():
         st.session_state.page = None  
         st.switch_page("main.py")  
 
+# Função auxiliar para formatação de moeda com fallback
+def format_currency(value):
+    try:
+        return lc.currency(value, grouping=True, symbol=False)
+    except:
+        # Fallback para formatação manual se locale não funcionar
+        return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 # PÁGINA ATOS
-
-
 def paginaatos():
     verificar_autenticacao()
 
@@ -40,7 +54,6 @@ def paginaatos():
 
     # Barra lateral
     if 'user_info' in st.session_state:
-        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
@@ -116,17 +129,17 @@ def paginaatos():
 
                 fig = go.Figure()
                 
-                texto_formatado = [f"R$ {lc.currency(v, grouping=True, symbol=False)}" for v in valores]
-                hover_texto = [f"{cat}<br>R$ {lc.currency(v, grouping=True, symbol=False)}" for cat, v in zip(categorias, valores)]
+                texto_formatado = [f"R$ {format_currency(v)}" for v in valores]
+                hover_texto = [f"{cat}<br>R$ {format_currency(v)}" for cat, v in zip(categorias, valores)]
                 
                 fig.add_trace(go.Bar(
-                x=categorias,
-                y=valores,
-                marker_color=cores,
-                text=texto_formatado,
-                textposition='outside',
-                hovertext=hover_texto,
-                hoverinfo='text'
+                    x=categorias,
+                    y=valores,
+                    marker_color=cores,
+                    text=texto_formatado,
+                    textposition='outside',
+                    hovertext=hover_texto,
+                    hoverinfo='text'
                 ))
 
                 fig.update_layout(
@@ -164,8 +177,8 @@ def paginaatos():
                 valores = [percentual_crescimento_atual, percentual_crescimento_meta]
                 cores = ["green", "aqua"]
 
-                texto_formatado = [lc.format_string('%.2f', v, grouping=True) + "%" for v in valores]
-                hover_texto = [f"{cat}: {lc.format_string('%.2f', v, grouping=True)}%" for cat, v in zip(categorias, valores)]
+                texto_formatado = [f"{v:.2f}%" for v in valores]
+                hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
 
                 fig.add_trace(go.Bar(
                     x=categorias,
@@ -221,7 +234,7 @@ def paginaatos():
                 })
 
                 df_vendas["Dia"] = df_vendas["Data"].dt.day 
-                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: lc.currency(x, grouping=True))
+                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
 
                 fig = go.Figure()
 
@@ -260,7 +273,7 @@ def paginaatos():
 
                 fig = go.Figure()
 
-                df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: lc.currency(y, grouping=True))
+                df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
 
                 fig.add_trace(go.Scatter(
                     x=df_vendas["Mês"].dt.strftime('%m/%Y'),
@@ -325,15 +338,15 @@ def paginaatos():
 
             with col1:
                 st.write(f"""#### Vendas 2024: \n 
-                        R$ {lc.currency(total_vendas, grouping=True, symbol=False)}
+                        R$ {format_currency(total_vendas)}
                         """)
             with col2:
                 st.write(f"""#### Acumulado 2024: \n
-                        R$ {lc.currency(acumulo_vendas_ano_anterior, grouping=True, symbol=False)}
+                        R$ {format_currency(acumulo_vendas_ano_anterior)}
                         """)
             with col3:
                 st.write(f"""#### Vendas do dia: ({data_venda_dia.strftime('%d/%m/%Y') if data_venda_dia else 'Sem data'})\n
-                        R$ {lc.currency(vendas_dia_anterior, grouping=True, symbol=False)} """)
+                        R$ {format_currency(vendas_dia_anterior)} """)
 
             exibindo_grafico_de_barras = grafico_de_barras(meta_mes, previsao, acumulo_meta_ano_anterior, acumulo_de_vendas)
             st.plotly_chart(exibindo_grafico_de_barras, use_container_width=True)
@@ -355,7 +368,7 @@ def paginaatos():
             )
 
             dados_vendas["vendas_formatado"] = dados_vendas["vendas"].apply(
-                lambda v: f"R$ {lc.format_string('%.2f', v, grouping=True)}"
+                lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             )
 
             fig_mapa = px.scatter_mapbox(
@@ -381,7 +394,8 @@ def paginaatos():
                 coloraxis_colorbar=dict(
                     title="Vendas (R$)",
                     tickvals=np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5),
-                    ticktext=[f"R$ {lc.format_string('%.2f', v, grouping=True)}" for v in np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5)]
+                    ticktext=[f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") 
+                              for v in np.linspace(dados_vendas["vendas"].min(), dados_vendas["vendas"].max(), 5)]
                 )
             )
 
@@ -506,7 +520,7 @@ def paginaatos():
                 categorias = ["Vendas ano anterior", "Meta do mês", f"Vendas de {mes_selecionado}"]
                 valores = [vendas_ano, meta_mes, vendas_mes_atual]
                 cores = ["darkgray", "darkblue", "darkred"]
-                textos_formatados = [f'R$ {lc.currency(v, grouping=True, symbol=False)}' for v in valores]
+                textos_formatados = [f'R$ {format_currency(v)}' for v in valores]
 
                 fig = go.Figure()
 
@@ -556,8 +570,8 @@ def paginaatos():
                 valores = [percentual_crescimento, percentual_crescimento_meta]
                 cores = ["green", "aqua"]
                 
-                texto_formatado = [lc.format_string('%.2f', v, grouping=True) + "%" for v in valores]
-                hover_texto = [f"{cat}: {lc.format_string('%.2f', v, grouping=True)}%" for cat, v in zip(categorias, valores)]
+                texto_formatado = [f"{v:.2f}%" for v in valores]
+                hover_texto = [f"{cat}: {v:.2f}%" for cat, v in zip(categorias, valores)]
 
                 fig.add_trace(go.Bar(
                     x=categorias,
@@ -612,7 +626,7 @@ def paginaatos():
                 })
 
                 df_vendas["Dia"] = df_vendas["Data"].dt.day 
-                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: lc.currency(x, grouping=True))
+                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
                 df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
                 fig = go.Figure()
@@ -651,7 +665,7 @@ def paginaatos():
 
                 fig = go.Figure()
 
-                df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: lc.currency(y, grouping=True))
+                df_vendas["Valor_formatado"] = df_vendas["Vendas"].apply(lambda y: format_currency(y))
 
                 fig.add_trace(go.Scatter(
                     x=df_vendas["Mês"].dt.strftime('%m/%Y'),
@@ -704,10 +718,7 @@ def paginaatos():
         st.session_state.page = None
         st.rerun()
 
-
-
 # PÁGINA UNIT
-
 def paginaunit():
     verificar_autenticacao()
     
@@ -740,7 +751,6 @@ def paginaunit():
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
 # PÁGINA RESIDENCIA
-
 def paginaresidencia():
     verificar_autenticacao()
     
@@ -772,10 +782,7 @@ def paginaresidencia():
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
-# PÁGINA NOVA ADICIONAR....
-
 # SISTEMA DINÂMICO DE ROTEAMENTO
-
 def encontrar_paginas():
     """Lista todas as funções pagina* disponíveis"""
     return [name for name, func in getmembers(sys.modules[__name__]) 
