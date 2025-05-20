@@ -15,6 +15,7 @@ def conexaobanco():
     except mysql.connector.Error as e:
         st.error(f"Erro ao conectar ao banco de dados: {e}")
         return None
+st.set_page_config(page_title="Atos Capital", page_icon="📊", layout="wide")
 
 def validacao(usr, passw):
     conn = conexaobanco()
