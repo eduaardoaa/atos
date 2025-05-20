@@ -214,57 +214,73 @@ def paginaatos():
                 return fig
 
             @st.cache_data
-            def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
+def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
+    # Dicionário para mapear nomes de meses para números
+    nomes_para_numeros = {
+        'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4,
+        'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8,
+        'setembro': 9, 'outubro': 10, 'novembro': 11, 'dezembro': 12
+    }
+    
+    # Garantir que mes_referencia seja uma lista e pegar o primeiro item
+    mes_nome = mes_referencia[0].lower() if isinstance(mes_referencia, list) else mes_referencia.lower()
+    
+    try:
+        mes_num = nomes_para_numeros[mes_nome]
+    except KeyError:
+        st.error(f"Mês inválido: {mes_referencia}")
+        return None
 
-                if not vendas:
-                    st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-                    return
+    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
 
-                valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
-                datas = [v[1] for v in vendas]
-                meses = [v[2] for v in vendas]
-                anos = [v[3] for v in vendas]
+    if not vendas:
+        st.warning("Nenhuma venda encontrada para os filtros selecionados.")
+        return None
 
-                df_vendas = pd.DataFrame({
-                    "Data": pd.to_datetime(datas),
-                    "Valor": valores,
-                    "Mês": [str(m) for m in meses],
-                    "Ano": [str(a) for a in anos]
-                })
+    valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
+    datas = [v[1] for v in vendas]
+    meses = [v[2] for v in vendas]
+    anos = [v[3] for v in vendas]
 
-                df_vendas["Dia"] = df_vendas["Data"].dt.day 
-                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
+    df_vendas = pd.DataFrame({
+        "Data": pd.to_datetime(datas),
+        "Valor": valores,
+        "Mês": [str(m) for m in meses],
+        "Ano": [str(a) for a in anos]
+    })
 
-                fig = go.Figure()
+    df_vendas["Dia"] = df_vendas["Data"].dt.day 
+    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
 
-                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
+    fig = go.Figure()
 
-                for mesano in df_vendas["MesAno"].unique():
-                    df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
+    df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
-                    fig.add_trace(go.Scatter(
-                        x=df_mesano["Dia"], 
-                        y=df_mesano["Valor"],
-                        mode='lines+markers',
-                        name=mesano,
-                        hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
-                        customdata=df_mesano["Valor_formatado"]
-                    ))
+    for mesano in df_vendas["MesAno"].unique():
+        df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
 
-                fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
-                    xaxis_title="Dia do Mês",
-                    yaxis_title="Vendas (R$)",
-                    template="plotly_white",
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True, 
-                        tickformat=",."
-                    )
-                )
+        fig.add_trace(go.Scatter(
+            x=df_mesano["Dia"], 
+            y=df_mesano["Valor"],
+            mode='lines+markers',
+            name=mesano,
+            hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
+            customdata=df_mesano["Valor_formatado"]
+        ))
 
-                return fig
+    fig.update_layout(
+        title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
+        xaxis_title="Dia do Mês",
+        yaxis_title="Vendas (R$)",
+        template="plotly_white",
+        yaxis=dict(
+            tickprefix="R$ ",
+            separatethousands=True, 
+            tickformat=",."
+        )
+    )
+
+    return fig
 
             def grafico_de_evolucao_vendas(vendas_mensais):
                 df_vendas = pd.DataFrame(list(vendas_mensais.items()), columns=['Mês', 'Vendas'])
