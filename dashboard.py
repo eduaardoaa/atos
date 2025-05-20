@@ -214,97 +214,80 @@ def paginaatos():
                 return fig
 
             @st.cache_data
-def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-    from datetime import datetime
-    import pandas as pd
-    import plotly.graph_objects as go
-    from decimal import Decimal
+            def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
+                # Garantir que mes_referencia seja uma lista
+                if not isinstance(mes_referencia, list):
+                    mes_referencia = [mes_referencia]
+                
+                # Extrair o nome do mês (primeiro elemento)
+                mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
+                
+                # Mapeamento de meses com tratamento de acentos
+                meses_map = {
+                    'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
+                    'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
+                    'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
+                    'Novembro': 11, 'Dezembro': 12
+                }
+                
+                # Normalizar nome do mês (remover acentos se necessário)
+                mes_nome_normalizado = mes_nome.replace('ç', 'c').replace('ê', 'e')
+                mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
+                
+                if not mes_num:
+                    st.error(f"Mês não reconhecido: {mes_nome}")
+                    return None
+                
+                # Obter dados da consulta SQL
+                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
 
-    # Garantir que mes_referencia seja uma lista
-    if not isinstance(mes_referencia, list):
-        mes_referencia = [mes_referencia]
-    
-    # Extrair o nome do mês (primeiro elemento)
-    mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
-    
-    # Tradução de meses do inglês para o português
-    meses_traducao = {
-        'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março',
-        'April': 'Abril', 'May': 'Maio', 'June': 'Junho', 'July': 'Julho',
-        'August': 'Agosto', 'September': 'Setembro', 'October': 'Outubro',
-        'November': 'Novembro', 'December': 'Dezembro'
-    }
+                if not vendas:
+                    st.warning("Nenhuma venda encontrada para os filtros selecionados.")
+                    return None
 
-    # Se vier em inglês, traduz para português
-    if mes_nome in meses_traducao:
-        mes_nome = meses_traducao[mes_nome]
+                valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
+                datas = [v[1] for v in vendas]
+                meses = [v[2] for v in vendas]
+                anos = [v[3] for v in vendas]
 
-    # Mapeamento de meses para número
-    meses_map = {
-        'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
-        'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
-        'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
-        'Novembro': 11, 'Dezembro': 12
-    }
+                df_vendas = pd.DataFrame({
+                    "Data": pd.to_datetime(datas),
+                    "Valor": valores,
+                    "Mês": [str(m) for m in meses],
+                    "Ano": [str(a) for a in anos]
+                })
 
-    # Normalizar nome do mês (sem acento)
-    mes_nome_normalizado = mes_nome.replace('ç', 'c').replace('ê', 'e')
-    mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
+                df_vendas["Dia"] = df_vendas["Data"].dt.day 
+                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
+                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
-    if not mes_num:
-        st.error(f"Mês não reconhecido: {mes_nome}")
-        return None
+                fig = go.Figure()
 
-    # Obter dados da consulta SQL
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
+                for mesano in df_vendas["MesAno"].unique():
+                    df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
 
-    if not vendas:
-        st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-        return None
+                    fig.add_trace(go.Scatter(
+                        x=df_mesano["Dia"], 
+                        y=df_mesano["Valor"],
+                        mode='lines+markers',
+                        name=mesano,
+                        hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
+                        customdata=df_mesano["Valor_formatado"]
+                    ))
 
-    valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
-    datas = [v[1] for v in vendas]
-    meses = [v[2] for v in vendas]
-    anos = [v[3] for v in vendas]
+                fig.update_layout(
+                    title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+                    xaxis_title="Dia do Mês",
+                    yaxis_title="Vendas (R$)",
+                    template="plotly_white",
+                    yaxis=dict(
+                        tickprefix="R$ ",
+                        separatethousands=True, 
+                        tickformat=",."
+                    )
+                )
 
-    df_vendas = pd.DataFrame({
-        "Data": pd.to_datetime(datas),
-        "Valor": valores,
-        "Mês": [str(m) for m in meses],
-        "Ano": [str(a) for a in anos]
-    })
-
-    df_vendas["Dia"] = df_vendas["Data"].dt.day 
-    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
-    df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
-
-    fig = go.Figure()
-
-    for mesano in df_vendas["MesAno"].unique():
-        df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
-
-        fig.add_trace(go.Scatter(
-            x=df_mesano["Dia"], 
-            y=df_mesano["Valor"],
-            mode='lines+markers',
-            name=mesano,
-            hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
-            customdata=df_mesano["Valor_formatado"]
-        ))
-
-    fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
-        xaxis_title="Dia do Mês",
-        yaxis_title="Vendas (R$)",
-        template="plotly_white",
-        yaxis=dict(
-            tickprefix="R$ ",
-            separatethousands=True, 
-            tickformat=",."
-        )
-    )
-
-    return fig
+                return fig
 
 
             def grafico_de_evolucao_vendas(vendas_mensais):
