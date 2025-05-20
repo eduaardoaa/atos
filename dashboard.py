@@ -216,57 +216,87 @@ def paginaatos():
                 return fig
 
             @st.cache_data
-            def grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado):
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(mes_referencia, filial_selecionada, ano_selecionado)
+def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
+    # Garantir que mes_referencia seja uma lista
+    if not isinstance(mes_referencia, list):
+        mes_referencia = [mes_referencia]
+    
+    # Converter o nome do mês em inglês para português
+    meses_traduzidos = {
+        'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março', 
+        'April': 'Abril', 'May': 'Maio', 'June': 'Junho',
+        'July': 'Julho', 'August': 'Agosto', 'September': 'Setembro',
+        'October': 'Outubro', 'November': 'Novembro', 'December': 'Dezembro'
+    }
+    
+    # Obter o nome do mês em português
+    mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
+    mes_portugues = meses_traduzidos.get(mes_nome, mes_nome)
+    
+    # Mapeamento de meses com tratamento de acentos
+    meses_map = {
+        'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
+        'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
+        'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
+        'Novembro': 11, 'Dezembro': 12
+    }
+    
+    mes_num = meses_map.get(mes_portugues)
+    
+    if not mes_num:
+        st.error(f"Mês não reconhecido: {mes_nome} (traduzido para: {mes_portugues})")
+        return None
+    
+    # Restante do código permanece o mesmo...
+    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
 
-                if not vendas:
-                    st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-                    return
+    if not vendas:
+        st.warning("Nenhuma venda encontrada para os filtros selecionados.")
+        return None
 
-                valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
-                datas = [v[1] for v in vendas]
-                meses = [v[2] for v in vendas]
-                anos = [v[3] for v in vendas]
+    valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
+    datas = [v[1] for v in vendas]
+    meses = [v[2] for v in vendas]
+    anos = [v[3] for v in vendas]
 
-                df_vendas = pd.DataFrame({
-                    "Data": pd.to_datetime(datas),
-                    "Valor": valores,
-                    "Mês": [str(m) for m in meses],
-                    "Ano": [str(a) for a in anos]
-                })
+    df_vendas = pd.DataFrame({
+        "Data": pd.to_datetime(datas),
+        "Valor": valores,
+        "Mês": [str(m) for m in meses],
+        "Ano": [str(a) for a in anos]
+    })
 
-                df_vendas["Dia"] = df_vendas["Data"].dt.day 
-                df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
-                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
+    df_vendas["Dia"] = df_vendas["Data"].dt.day 
+    df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
+    df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
-                fig = go.Figure()
+    fig = go.Figure()
 
-                for mesano in df_vendas["MesAno"].unique():
-                    df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
+    for mesano in df_vendas["MesAno"].unique():
+        df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
 
-                    fig.add_trace(go.Scatter(
-                        x=df_mesano["Dia"], 
-                        y=df_mesano["Valor"],
-                        mode='lines+markers',
-                        name=mesano,
-                        hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
-                        customdata=df_mesano["Valor_formatado"]
-                    ))
+        fig.add_trace(go.Scatter(
+            x=df_mesano["Dia"], 
+            y=df_mesano["Valor"],
+            mode='lines+markers',
+            name=mesano,
+            hovertemplate='Dia %{x}<br>Valor: %{customdata}<extra></extra>',
+            customdata=df_mesano["Valor_formatado"]
+        ))
 
-                fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
-                    xaxis_title="Dia do Mês",
-                    yaxis_title="Vendas (R$)",
-                    template="plotly_white",
-                    showlegend=True,
-                    yaxis=dict(
-                        tickprefix="R$ ",
-                        separatethousands=True, 
-                        tickformat=",."
-                    )
-                )
+    fig.update_layout(
+        title=f"📈 Vendas comparadas {mes_portugues} - {filial_selecionada}",
+        xaxis_title="Dia do Mês",
+        yaxis_title="Vendas (R$)",
+        template="plotly_white",
+        yaxis=dict(
+            tickprefix="R$ ",
+            separatethousands=True, 
+            tickformat=",."
+        )
+    )
 
-                return fig
+    return fig
 
             def grafico_de_evolucao_vendas(vendas_mensais):
                 df_vendas = pd.DataFrame(list(vendas_mensais.items()), columns=['Mês', 'Vendas'])
