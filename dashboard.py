@@ -10,6 +10,9 @@ from inspect import getmembers, isfunction
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 
+# Configuração da página DEVE SER A PRIMEIRA COISA
+st.set_page_config(page_title="Atos Capital", page_icon="📊", layout="wide")
+
 # Configuração do locale com fallback seguro
 try:
     lc.setlocale(lc.LC_ALL, 'pt_BR.UTF-8')
@@ -48,8 +51,6 @@ def format_currency(value):
 # PÁGINA ATOS
 def paginaatos():
     verificar_autenticacao()
-
-    # Configuração da página
 
     # Barra lateral
     if 'user_info' in st.session_state:
@@ -444,7 +445,7 @@ def paginaatos():
             filial_selecionada = st.sidebar.selectbox("Selecione a Filial", filiais)
 
             meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
-                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+                     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezember"]
 
             hoje = datetime.today()
             dia_hoje = hoje.day
@@ -745,9 +746,6 @@ def paginaatos():
 def paginaunit():
     verificar_autenticacao()
     
-    # Configuração da página
-    st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
-    
     # Barra lateral
     if 'user_info' in st.session_state:
         st.sidebar.subheader("Informações do Usuário")
@@ -776,9 +774,6 @@ def paginaunit():
 # PÁGINA RESIDENCIA
 def paginaresidencia():
     verificar_autenticacao()
-    
-    # Configuração da página
-    st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
     
     # Barra lateral
     if 'user_info' in st.session_state:
