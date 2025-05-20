@@ -50,7 +50,6 @@ def paginaatos():
     verificar_autenticacao()
 
     # Configuração da página
-    st.set_page_config(page_title="Atos Capital", page_icon="📊", layout="wide")
 
     # Barra lateral
     if 'user_info' in st.session_state:
