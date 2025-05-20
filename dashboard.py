@@ -215,59 +215,17 @@ def paginaatos():
 
                 return fig
 
-            def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-    # Garantir que mes_referencia seja uma lista
-    if not isinstance(mes_referencia, list):
-        mes_referencia = [mes_referencia]
-    
-    # Dicionários de mapeamento
-    meses_map = {
-        'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
-        'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
-        'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
-        'Novembro': 11, 'Dezembro': 12
-    }
-    meses_traducao = {
-        'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março',
-        'April': 'Abril', 'May': 'Maio', 'June': 'Junho', 'July': 'Julho',
-        'August': 'Agosto', 'September': 'Setembro', 'October': 'Outubro',
-        'November': 'Novembro', 'December': 'Dezembro'
-    }
-
-    # Detectar tipo e extrair mês
-    if isinstance(mes_referencia[0], (datetime, pd.Timestamp)):
-        mes_num = mes_referencia[0].month
-        mes_nome = list(meses_map.keys())[mes_num - 1]
-    else:
-        mes_nome = str(mes_referencia[0]).strip().capitalize()
-
-        # Tentar traduzir do inglês se necessário
-        mes_nome = meses_traducao.get(mes_nome, mes_nome)
-
-        # Normalizar nome do mês (remover acentos simples)
-        mes_nome_normalizado = (
-            mes_nome.replace('ç', 'c')
-                    .replace('ê', 'e')
-                    .replace('é', 'e')
-                    .replace('ã', 'a')
-                    .replace('â', 'a')
-                    .replace('ô', 'o')
-        )
-
-        mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
-
-    if not mes_num:
-        st.error(f"Mês não reconhecido: {mes_nome}")
-        return None
-
-    # Obter dados da consulta SQL
-    vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
+            @st.cache_data
+            @st.cache_data
+def grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado):
+    vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(
+        mes_referencia, filial_selecionada, ano_selecionado
+    )
 
     if not vendas:
         st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-        return None
+        return
 
-    # Processar os dados
     valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
     datas = [v[1] for v in vendas]
     meses = [v[2] for v in vendas]
@@ -284,7 +242,6 @@ def paginaatos():
     df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
     df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
-    # Criar o gráfico
     fig = go.Figure()
 
     for mesano in df_vendas["MesAno"].unique():
@@ -300,10 +257,11 @@ def paginaatos():
         ))
 
     fig.update_layout(
-        title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+        title=f"📈 Vendas comparadas {mes_referencia} - {filial_selecionada}",
         xaxis_title="Dia do Mês",
         yaxis_title="Vendas (R$)",
         template="plotly_white",
+        showlegend=True,
         yaxis=dict(
             tickprefix="R$ ",
             separatethousands=True, 
@@ -312,6 +270,7 @@ def paginaatos():
     )
 
     return fig
+
 
             def grafico_de_evolucao_vendas(vendas_mensais):
                 df_vendas = pd.DataFrame(list(vendas_mensais.items()), columns=['Mês', 'Vendas'])
