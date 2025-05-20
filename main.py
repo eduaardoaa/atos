@@ -1,6 +1,8 @@
 import mysql.connector
 import streamlit as st
 import importlib
+import sys
+from pathlib import Path
 
 def conexaobanco():
     try:
@@ -53,9 +55,15 @@ def validacao(usr, passw):
             if user.get('grupo_codigo'):
                 codigo_grupo = user['grupo_codigo'].lower().strip()
                 
-                st.session_state.page = "dashboard"
-                st.session_state.dashboard_page = f"pagina{codigo_grupo}"
-                st.rerun()
+                # Verifica se o módulo existe antes de redirecionar
+                module_path = f"pages.{codigo_grupo}"
+                try:
+                    importlib.import_module(module_path)
+                    st.session_state.page = "dashboard"
+                    st.session_state.dashboard_page = codigo_grupo
+                    st.rerun()
+                except ImportError:
+                    st.error(f'Dashboard para o grupo {codigo_grupo} não está disponível.')
             else:
                 st.error('Usuário não está associado a nenhum grupo válido.')
         else:
@@ -83,25 +91,49 @@ def arealogin():
 def carregar_pagina(nome_pagina):
     try:
         if nome_pagina == "dashboard":
-            modulo = importlib.import_module("dashboard")
-            pagina = st.session_state.get('dashboard_page', 'paginaatos')
+            # Verifica se o módulo existe na pasta pages
+            pagina = st.session_state.get('dashboard_page', 'atos')  # padrão para 'atos'
+            module_path = f"pages.{pagina}"
             
-            if hasattr(modulo, pagina):
-                getattr(modulo, pagina)()
-            else:
-                st.error(f'Dashboard para este grupo não está disponível. Entre em contato com o suporte.')
+            try:
+                modulo = importlib.import_module(module_path)
+                # Verifica se a função principal existe
+                if hasattr(modulo, 'main'):
+                    modulo.main()
+                else:
+                    st.error(f'O módulo {pagina} não possui uma função main()')
+                    if st.button("Voltar"):
+                        st.session_state.authenticated = False
+                        st.session_state.page = None
+                        st.rerun()
+            except ImportError as e:
+                st.error(f'Dashboard para este grupo não está disponível. Erro: {str(e)}')
                 if st.button("Voltar"):
                     st.session_state.authenticated = False
                     st.session_state.page = None
-                    st.rerun() 
+                    st.rerun()
+        elif nome_pagina == "adm":
+            try:
+                modulo = importlib.import_module("pages.adm")
+                modulo.main()
+            except ImportError:
+                st.error('Módulo de administração não encontrado')
+                if st.button("Voltar"):
+                    st.session_state.authenticated = False
+                    st.session_state.page = None
+                    st.rerun()
         else:
-            modulo = importlib.import_module(nome_pagina)
-            if hasattr(modulo, f'pagina{nome_pagina}'):
-                getattr(modulo, f'pagina{nome_pagina}')()
-            else:
-                st.error(f'Página {nome_pagina} não possui a função esperada')
-    except ImportError as e:
-        st.error(f'Erro ao carregar módulo: {e}')
+            st.error('Página desconhecida')
+            if st.button("Voltar"):
+                st.session_state.authenticated = False
+                st.session_state.page = None
+                st.rerun()
+    except Exception as e:
+        st.error(f'Erro inesperado: {str(e)}')
+        if st.button("Voltar"):
+            st.session_state.authenticated = False
+            st.session_state.page = None
+            st.rerun()
 
 def main():
     if "authenticated" not in st.session_state:
@@ -111,10 +143,9 @@ def main():
         arealogin()
     else:
         if "page" in st.session_state:
-            if st.session_state.page == "adm":
-                carregar_pagina("adm")
-            else:
-                carregar_pagina(st.session_state.page)
+            carregar_pagina(st.session_state.page)
 
 if __name__ == "__main__":
+    # Adiciona o diretório atual ao path para garantir que os imports funcionem
+    sys.path.append(str(Path(__file__).parent))
     main()
