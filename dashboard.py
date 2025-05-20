@@ -45,7 +45,7 @@ def format_currency(value):
         # Fallback para formatação manual se locale não funcionar
         return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# PÁGINA ATOS - CÓDIGO CORRIGIDO
+# PÁGINA ATOS
 def paginaatos():
     verificar_autenticacao()
 
@@ -86,9 +86,7 @@ def paginaatos():
                 st.session_state['pagina'] = 'meses_anterior'
                 st.rerun()
 
-            # Garantir que mes_referencia seja sempre uma lista com o mês atual
-            mes_atual = datetime.now().strftime('%B').capitalize()
-            mes_referencia = [mes_atual]
+            mes_referencia = [datetime.now().strftime('%B').capitalize()]
 
             # Fim sidebar
 
@@ -216,37 +214,12 @@ def paginaatos():
                 return fig
 
             @st.cache_data
-            @st.cache_data
             def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-                # Garantir que mes_referencia seja uma lista
-                if not isinstance(mes_referencia, list):
-                    mes_referencia = [mes_referencia]
-                
-                # Extrair o nome do mês (primeiro elemento)
-                mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
-                
-                # Mapeamento de meses com tratamento de acentos
-                meses_map = {
-                    'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
-                    'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
-                    'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
-                    'Novembro': 11, 'Dezembro': 12
-                }
-                
-                # Normalizar nome do mês (remover acentos se necessário)
-                mes_nome_normalizado = mes_nome.replace('ç', 'c').replace('ê', 'e')
-                mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
-                
-                if not mes_num:
-                    st.error(f"Mês não reconhecido: {mes_nome}")
-                    return None
-                
-                # Obter dados da consulta SQL
-                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
+                vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada)
 
                 if not vendas:
                     st.warning("Nenhuma venda encontrada para os filtros selecionados.")
-                    return None
+                    return
 
                 valores = [float(v[0]) if isinstance(v[0], Decimal) else v[0] for v in vendas]
                 datas = [v[1] for v in vendas]
@@ -262,9 +235,10 @@ def paginaatos():
 
                 df_vendas["Dia"] = df_vendas["Data"].dt.day 
                 df_vendas["Valor_formatado"] = df_vendas["Valor"].apply(lambda x: format_currency(x))
-                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
                 fig = go.Figure()
+
+                df_vendas["MesAno"] = df_vendas["Mês"] + "/" + df_vendas["Ano"]
 
                 for mesano in df_vendas["MesAno"].unique():
                     df_mesano = df_vendas[df_vendas["MesAno"] == mesano]
@@ -279,7 +253,7 @@ def paginaatos():
                     ))
 
                 fig.update_layout(
-                    title=f"📈 Vendas comparadas {mes_nome} - {filial_selecionada}",
+                    title=f"📈 Vendas comparadas {mes_referencia[0]} - {filial_selecionada}",
                     xaxis_title="Dia do Mês",
                     yaxis_title="Vendas (R$)",
                     template="plotly_white",
@@ -349,7 +323,11 @@ def paginaatos():
             }
             
             dados_vendas = pd.DataFrame({
-                'filial': list(coordenadas_filiais.keys())
+                'filial': ['FILIAL BELÉM', 'FILIAL BELO HORIZONTE', 'FILIAL BRASÍLIA', 'FILIAL CAMPINAS', 
+                          'FILIAL CURITIBA', 'FILIAL DUQUE DE CAXIAS', 'FILIAL FORTALEZA', 'FILIAL GOIÂNIA', 
+                          'FILIAL GUARULHOS', 'FILIAL MACEIÓ', 'FILIAL MANAUS', 'FILIAL RECIFE', 
+                          'FILIAL RIO DE JANEIRO', 'FILIAL SALVADOR', 'FILIAL SÃO GONÇALO', 
+                          'FILIAL SÃO LUÍS', 'FILIAL SÃO PAULO']
             })
             
             dados_vendas['latitude'] = dados_vendas['filial'].map(lambda x: coordenadas_filiais[x]['latitude'])
@@ -379,11 +357,10 @@ def paginaatos():
             st.sidebar.plotly_chart(exibindo_grafico_de_crescimento)
 
             exibindo_grafico_de_linhas_vendas_por_mes = grafico_linhas_por_filial(mes_referencia, filial_selecionada)
-            if exibindo_grafico_de_linhas_vendas_por_mes:
-                st.plotly_chart(exibindo_grafico_de_linhas_vendas_por_mes)
+            st.write(exibindo_grafico_de_linhas_vendas_por_mes)
 
             exibindo_grafico_acompanhamanto_anual = grafico_de_evolucao_vendas(vendas_mensais)
-            st.plotly_chart(exibindo_grafico_acompanhamanto_anual)
+            st.write(exibindo_grafico_acompanhamanto_anual)
 
             # Simula valores de vendas para cada filial
             dados_vendas["vendas"] = dados_vendas["filial"].apply(
@@ -744,59 +721,78 @@ def paginaatos():
 # PÁGINA UNIT
 def paginaunit():
     verificar_autenticacao()
+    
+    # Configuração da página
     st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
     
+    # Barra lateral
     if 'user_info' in st.session_state:
         st.sidebar.subheader("Informações do Usuário")
         st.sidebar.write(f"👤 Nome: {st.session_state.user_info['nome']}")
         st.sidebar.write(f"🔑 Permissão: {st.session_state.user_info['permissao']}")
         
+        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
                 st.rerun()
     
+    # Botão sair da conta
     if st.sidebar.button("🚪 Sair"):
         st.session_state.authenticated = False
         st.session_state.page = None
         st.rerun()
     
+    # Nome Principal Pagina
     st.title("📊 TESTE")
+    
+    # Mensagem boas vindas com nome cadastrado na conta
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
 # PÁGINA RESIDENCIA
 def paginaresidencia():
     verificar_autenticacao()
+    
+    # Configuração da página
     st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
     
+    # Barra lateral
     if 'user_info' in st.session_state:
         st.sidebar.subheader("Informações do Usuário")
         st.sidebar.write(f"👤 Nome: {st.session_state.user_info['nome']}")
         st.sidebar.write(f"🔑 Permissão: {st.session_state.user_info['permissao']}")
         
+        # Adicionar botão Voltar apenas para administradores
         if st.session_state.user_info['permissao'].lower() == 'adm':
             if st.sidebar.button("⬅️ Voltar para Administração"):
                 st.session_state.page = 'adm'
                 st.rerun()
     
+    # Botão sair da conta
     if st.sidebar.button("🚪 Sair"):
         st.session_state.authenticated = False
         st.session_state.page = None
         st.rerun()
     
+    # Nome Principal Pagina
     st.title("📊 Residencia")
+    
+    # Mensagem boas vindas com nome cadastrado na conta
     if 'user_info' in st.session_state:
         st.write(f"Bem-vindo, {st.session_state.user_info['nome']}!")
 
 # SISTEMA DINÂMICO DE ROTEAMENTO
 def encontrar_paginas():
+    """Lista todas as funções pagina* disponíveis"""
     return [name for name, func in getmembers(sys.modules[__name__]) 
              if name.startswith('pagina') and isfunction(func)]
 
 def main():
+    # Pega o nome da página da session_state
     nome_pagina = st.session_state.get('dashboard_page', 'pagina_nao_encontrada')
     
+    # Verifica se a função existe
     if nome_pagina in globals() and callable(globals()[nome_pagina]):
         globals()[nome_pagina]()
     else:
@@ -804,6 +800,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-Nesse codigo no grafico de Vendas comparadas ta dando Mês não reconhecido: May
