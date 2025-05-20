@@ -217,28 +217,32 @@ def paginaatos():
 
             @st.cache_data
             def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
-                # Garantir que mes_referencia seja uma lista
-                if not isinstance(mes_referencia, list):
-                    mes_referencia = [mes_referencia]
-                
-                # Extrair o nome do mês (primeiro elemento)
-                mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
-                
-                # Mapeamento de meses com tratamento de acentos
-                meses_map = {
-                    'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
-                    'Abril': 4, 'Maio': 5, 'Junho': 6, 'Julho': 7,
-                    'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
-                    'Novembro': 11, 'Dezembro': 12
-                }
-                
-                # Normalizar nome do mês (remover acentos se necessário)
-                mes_nome_normalizado = mes_nome.replace('ç', 'c').replace('ê', 'e')
-                mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
-                
-                if not mes_num:
-                    st.error(f"Mês não reconhecido: {mes_nome}")
-                    return None
+    # Garantir que mes_referencia seja uma lista
+    if not isinstance(mes_referencia, list):
+        mes_referencia = [mes_referencia]
+    
+    # Extrair o nome do mês (primeiro elemento)
+    mes_nome = str(mes_referencia[0]).strip().capitalize() if mes_referencia else datetime.now().strftime('%B').capitalize()
+    
+    # Mapeamento de meses em português e inglês
+    meses_map = {
+        'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Marco': 3,
+        'Abril': 4, 'Maio': 5, 'May': 5, 'Junho': 6, 'Julho': 7,
+        'Agosto': 8, 'Setembro': 9, 'Outubro': 10,
+        'Novembro': 11, 'Dezembro': 12,
+        # Adicionando meses em inglês para garantir compatibilidade
+        'January': 1, 'February': 2, 'March': 3, 'April': 4,
+        'June': 6, 'July': 7, 'August': 8, 'September': 9,
+        'October': 10, 'November': 11, 'December': 12
+    }
+    
+    # Normalizar nome do mês (remover acentos se necessário)
+    mes_nome_normalizado = mes_nome.replace('ç', 'c').replace('ê', 'e')
+    mes_num = meses_map.get(mes_nome) or meses_map.get(mes_nome_normalizado)
+    
+    if not mes_num:
+        st.error(f"Mês não reconhecido: {mes_nome}")
+        return None
                 
                 # Obter dados da consulta SQL
                 vendas = consultaSQL.obter_vendas_por_mes_e_filial(mes_num, filial_selecionada)
