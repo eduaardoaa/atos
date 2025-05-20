@@ -216,7 +216,6 @@ def paginaatos():
                 return fig
 
             @st.cache_data
-            @st.cache_data
 def grafico_linhas_por_filial(mes_referencia, filial_selecionada, ano_selecionado):
     vendas = consultaSQL.obter_vendas_por_mes_e_filial_mes_anterior(
         mes_referencia, filial_selecionada, ano_selecionado
