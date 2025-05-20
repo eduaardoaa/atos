@@ -215,8 +215,7 @@ def paginaatos():
 
                 return fig
 
-                            @st.cache_data
-                @st.cache_data
+            @st.cache_data
             def grafico_linhas_por_filial(mes_referencia, filial_selecionada):
                 # Garantir que mes_referencia seja uma lista
                 if not isinstance(mes_referencia, list):
