@@ -538,7 +538,12 @@ def obter_vendas_por_mes_e_filial(mes_referencia, filial_selecionada):
         cursor = conn.cursor()
 
         for mes_nome in mes_referencia:
-            mes_num = int(nomes_para_numeros[mes_nome])
+            try:
+                mes_num = int(nomes_para_numeros[mes_nome])
+            except KeyError:
+                print(f"Erro: Mês '{mes_nome}' não encontrado no dicionário. Usando o mês atual como padrão.")
+                mes_num = datetime.now().month  # datetime vem do import do topo
+
             ultimo_dia = calendar.monthrange(ano_atual, mes_num)[1]
 
             # Busca para o ano atual
