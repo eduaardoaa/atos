@@ -18,11 +18,11 @@ def verificar_permissao():
 def conectarbanco():
     try:
         conn = mysql.connector.connect(
-            host="maglev.proxy.rlwy.net",
-            port=10175,
-            user="root",
-            password="DrMCLnXdmCSDqBsJSiZzXmfaIxHvMkkL",
-            database="railway"
+            host="24.144.83.133",
+            port=3306,
+            user="atos",
+            password="atoscapital",
+            database="atoscapital"
         )
         return conn
     except mysql.connector.Error as e:
