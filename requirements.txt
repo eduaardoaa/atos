@@ -1,6 +1,6 @@
 streamlit
 pandas
-numpy>
+numpy
 plotly
 python-dotenv
 mysql-connector-python
