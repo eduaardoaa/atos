@@ -98,10 +98,11 @@ def paginaatos():
             left_co, cent_co, last_co = st.columns(3)
             with cent_co:
                 st.image('logoatos.png', width=500)
-            st.write(f"# Relatório de venda da {filial_selecionada}")
+            st.write(f"# Dashboard de venda da {filial_selecionada}")
             # Fim cabeçalho
 
             total_vendas = consultaSQL.obter_vendas_ano_anterior(filial_selecionada)
+            
             meta_mes = consultaSQL.obter_meta_mes(filial_selecionada)
             previsao = consultaSQL.obter_previsao_vendas(filial_selecionada)
             acumulo_vendas_ano_anterior = consultaSQL.acumulo_vendas_periodo_ano_anterior(filial_selecionada)
@@ -481,7 +482,7 @@ def paginaatos():
             left_co, cent_co, last_co = st.columns(3)
             with cent_co:
                 st.image('logoatos.png', width=500)
-            st.write(f"# Relatório de venda da {filial_selecionada}")
+            st.write(f"# Dashboard de venda da {filial_selecionada}")
             # Fim cabeçalho
 
             total_vendas = consultaSQL.obter_vendas_ano_anterior_mes_anterior(filial_selecionada, mes_final, ano_final - 1)
