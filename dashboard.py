@@ -141,7 +141,7 @@ def paginaatos():
                 st.session_state['dashboard_page'] = 'paginarelatoriocompleto'
                 st.rerun()
             
-            if st.sidebar.button("🤖 Agente IA Atos"):
+            if st.sidebar.button("🤖 Theo Assistente Virtual"):
                 st.session_state['dashboard_page'] = 'paginaagenteia'
                 st.rerun()
                             
