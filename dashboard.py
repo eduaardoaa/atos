@@ -1149,7 +1149,7 @@ def paginaagenteia():
     def enviar_para_webhook(mensagem):
         try:
             response = requests.post(
-                "https://n8n-n8n.zofbat.easypanel.host/webhook/pergunta-whatsapp",
+                "https://n8n-n8n.zofbat.easypanel.host/webhook-test/pergunta-whatsapp",
                 headers={"Content-Type": "application/json"},
                 data=json.dumps({"pergunta": mensagem}),
                 timeout=300
